@@ -56,6 +56,15 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+
+  # Prettier for Ruby
+  # https://github.com/prettier/plugin-ruby
+  gem "bundler"
+  gem "rbs"
+  gem "prettier_print"
+  gem "syntax_tree"
+  gem "syntax_tree-haml"
+  gem "syntax_tree-rbs"
 end
 
 group :test do
