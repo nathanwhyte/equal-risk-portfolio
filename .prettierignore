@@ -1,0 +1,10 @@
+**/.github
+**/.ruby-lsp
+**/.vscode
+
+**/db
+**/config
+**/public
+**/scratch
+
+**/*.md
