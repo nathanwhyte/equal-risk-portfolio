@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+require "fileutils"
+
+APP_ROOT = File.expand_path("..", __dir__)
+
+def system!(*args)
+  system(*args, exception: true)
+end
+
+FileUtils.chdir APP_ROOT do
+  puts ">>> Checking dependencies <<<"
+  system("bundle check > /dev/null") || system!("bundle install --quiet")
+  puts "✅ Dependencies are in place"
+
+  # Install JavaScript dependencies
+  system!("bun install --silent")
+
+  puts "\n>>> Running `prettier` <<<"
+  system("./node_modules/.bin/prettier --write .")
+
+  puts "\n>>> Running `rubocop` <<<"
+  exec "bin/rubocop -A"
+end
