@@ -15,11 +15,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_25_190720) do
   enable_extension "pg_catalog.plpgsql"
 
   create_table "stock_infos", force: :cascade do |t|
-    t.string "ticker"
-    t.string "name"
+    t.string "ticker", null: false
+    t.string "name", null: false
     t.boolean "active"
     t.string "sector"
-    t.string "logo_url"
+    t.string "logo_url", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
