@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html data-theme="tws">
   <head>
-    <title><%= content_for(:title) || "Eqrsk" %></title>
+    <title><%= content_for(:title) || "Equal Risk Dashboard" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -23,6 +23,16 @@
   </head>
 
   <body>
-    <%= yield %>
+    <%= render "application/navbar" %>
+
+    <!-- TODO: header or hero content -->
+
+    <main>
+      <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+        <%= yield %>
+      </div>
+    </main>
+
+    <!-- TODO: footer -->
   </body>
 </html>
