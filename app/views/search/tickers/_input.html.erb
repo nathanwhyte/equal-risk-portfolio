@@ -1,5 +1,7 @@
-<%= turbo_frame_tag "tickerSearch" do %>
-  <%= form_with url: search_tickers_path, method: :get do |form| %>
+<%= form_with url: search_tickers_path, method: :get, local: true do |form| %>
+  <div class="flex gap-2 items-center input input-primary">
     <%= form.text_field :query, value: params[:query], placeholder: "Search tickers..." %>
-  <% end %>
+    <!-- TODO: this should be clickable -->
+    <%= render "shared/icons/search" %>
+  </div>
 <% end %>
