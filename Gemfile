@@ -51,6 +51,11 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  # Formatter for embedded Ruby (.erb) files
+  gem "erb-formatter", require: false
+
+  gem "tailwindcss-formatter", require: false
 end
 
 group :development do
