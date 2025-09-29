@@ -1,4 +1,6 @@
 <%= turbo_frame_tag "tickerSearch" do %>
+  <%= render "search/tickers/input" %>
+
   <ul>
     <% @tickers.each do |ticker| %>
       <li>
