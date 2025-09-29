@@ -1,0 +1,5 @@
+<%= turbo_frame_tag "tickerSearch" do %>
+  <%= form_with url: search_tickers_path, method: :get do |form| %>
+    <%= form.text_field :query, value: params[:query], placeholder: "Search tickers..." %>
+  <% end %>
+<% end %>

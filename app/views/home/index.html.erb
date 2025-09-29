@@ -1,3 +1,9 @@
 <div class="pt-8">
   <h1>Hello from index!</h1>
+
+  <%= turbo_frame_tag "tickerSearch" do %>
+    <h2>Ticker Search</div>
+
+    <%= render "search/tickers/input" %>
+  <% end %>
 </div>

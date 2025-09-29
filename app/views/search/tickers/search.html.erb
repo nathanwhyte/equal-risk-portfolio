@@ -1,0 +1,9 @@
+<%= turbo_frame_tag "tickerSearch" do %>
+  <ul>
+    <% @tickers.each do |ticker| %>
+      <li>
+        <h2><%= ticker %></h2>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
