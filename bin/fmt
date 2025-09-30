@@ -15,8 +15,13 @@ FileUtils.chdir APP_ROOT do
   # Install JavaScript dependencies
   system!("bun install --silent")
 
-  puts "\n>>> Running `prettier` <<<"
-  system("./node_modules/.bin/prettier --write .")
+  puts "\n>>> Running `erb-formatter` <<<"
+  system("erb-format --write app/views/**/*.html.erb")
+  puts "✅ ERB files look good"
+
+  puts "\n>>> Formatting tailwind classes <<<"
+  system("tailwindcss-format app/**/*.html.erb -w")
+  puts "✅ Tailwind classes are sorted"
 
   puts "\n>>> Running `rubocop` <<<"
   exec "bin/rubocop -A"

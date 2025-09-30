@@ -18,6 +18,8 @@ gem "stimulus-rails"
 gem "cssbundling-rails"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
+# Makes http fun again! [https://github.com/jnunemaker/httparty]
+gem "httparty"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
@@ -51,6 +53,11 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  # Formatter for embedded Ruby (.erb) files
+  gem "erb-formatter", require: false
+
+  gem "tailwindcss-formatter", require: false
 end
 
 group :development do
