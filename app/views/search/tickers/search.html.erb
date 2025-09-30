@@ -1,11 +1,7 @@
 <%= turbo_frame_tag "tickerSearch" do %>
-  <%= render "search/tickers/input" %>
+  <%= render partial: "search/tickers/input" %>
 
-  <ul>
-    <% @tickers.each do |ticker| %>
-      <li>
-        <h2><%= ticker %></h2>
-      </li>
-    <% end %>
-  </ul>
+  <div class="grid grid-rows-3 grid-flow-col auto-cols-min gap-4 pt-4">
+    <%= render partial: "result", collection: @tickers %>
+  </div>
 <% end %>
