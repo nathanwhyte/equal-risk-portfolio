@@ -1,4 +1,4 @@
-<%= form_with url: search_tickers_path, method: :get, local: true, class: "flex items-center gap-4" do |form| %>
+<%= form_with url: search_tickers_path, method: :get, local: true, class: "flex gap-4 items-center" do |form| %>
   <div class="flex gap-2 input">
     <%= render "shared/icons/search" %>
     <%= form.text_field :query,
@@ -8,7 +8,7 @@
     <kbd class="kbd kbd-md">↵</kbd>
   </div>
 
-  <%= button_tag(type: "submit", class: "btn btn-primary btn-md") do %>
+  <%= button_tag(type: "submit", class: "btn btn-md btn-primary") do %>
     Search
   <% end %>
 <% end %>
