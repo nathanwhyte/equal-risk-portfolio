@@ -1,7 +1,14 @@
 <%= turbo_frame_tag "tickerSearch" do %>
   <%= render partial: "search/tickers/input" %>
 
-  <div class="grid grid-rows-3 grid-flow-col auto-cols-min gap-4 pt-4">
+  <div class="grid grid-rows-3 grid-cols-3 auto-cols-min gap-4 pt-4">
+    <% if @tickers and @tickers.empty? %>
+      <div class="col-span-3 italic text-base-content/50">
+        No results found
+      </div>
+    <% end %>
+
     <%= render partial: "result", collection: @tickers %>
+    <!-- TODO: add something like "Didn't find what you're looking for? -->
   </div>
 <% end %>
