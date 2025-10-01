@@ -1,9 +1,9 @@
 class Search::TickersController < ApplicationController
   def search
     if params[:query].present?
-      @tickers = polygon_search(params[:query])
+      @results = polygon_search(params[:query])
     else
-      @tickers = []
+      @results = []
     end
   end
 
@@ -15,7 +15,7 @@ class Search::TickersController < ApplicationController
     response = generate_polygon_search_url(query, key)
     if response.success?
       res = response.parsed_response["results"]
-      stocks = res.map do |stock|
+      results = res.map do |stock|
         TickerSearchResult.new(
           id: stock["ticker"],
           ticker: stock["ticker"],
@@ -23,7 +23,7 @@ class Search::TickersController < ApplicationController
         )
       end
 
-      return stocks
+      return results
     end
 
     []
