@@ -5,10 +5,10 @@
       <%= render partial: "shared/icons/money" %>
     </div>
     <div class="flex-1 truncate">
-      <div class="text-lg font-semibold"><%= result[:ticker] %></div>
-      <div class="text-sm italic text-base-content/50 truncate"><%= result[:name] %></div>
+      <div class="text-lg font-semibold"><%= result.ticker %></div>
+      <div class="text-sm italic text-base-content/50 truncate"><%= result.name %></div>
     </div>
-    <div>
-    </div>
+
+    <!-- TODO: add checkbox styling using check_box_tag -->
   </div>
 </div>

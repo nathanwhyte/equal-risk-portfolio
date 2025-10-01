@@ -16,11 +16,11 @@ class Search::TickersController < ApplicationController
     if response.success?
       res = response.parsed_response["results"]
       stocks = res.map do |stock|
-        {
-          id: stock["composite_figi"],
+        TickerSearchResult.new(
+          id: stock["ticker"],
           ticker: stock["ticker"],
-          name: stock["name"]
-        }
+          name: stock["name"],
+        )
       end
 
       return stocks
