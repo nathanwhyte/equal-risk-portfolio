@@ -1,11 +1,18 @@
-<section class="pt-8">
-  <!-- TODO: header/hero content -->
-  <h1 class="pb-4 text-2xl font-semibold">Ticker Search</h1>
-
-  <%= turbo_frame_tag "tickerSearch" do %>
-    <%= render "search/tickers/input" %>
-    <div class="pt-4 italic text-base-content/50">
-      Use the search box above to find stock using their ticker.
+<section>
+  <div class="hero py-24">
+    <div class="hero-content text-center flex flex-col">
+      <div class="block">
+        <p class="text-4xl text-base-content/25">Welcome to</p>
+        <h1 class="text-7xl font-bold">Equal Risk Calculator</h1>
+      </div>
+      <div class="max-w-xl">
+        <p class="py-6">
+          Provident cupiditate voluptatem et in. Quaerat fugiat ut assumenda
+          excepturi exercitationem quasi. In deleniti eaque aut repudiandae et
+          a id nisi.
+        </p>
+        <%= link_to "Build a Portfolio", portfolios_path, class: "btn btn-primary btn-lg" %>
+      </div>
     </div>
-  <% end %>
+  </div>
 </section>
