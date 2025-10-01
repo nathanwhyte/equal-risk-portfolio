@@ -17,6 +17,7 @@ class Search::TickersController < ApplicationController
       res = response.parsed_response["results"]
       stocks = res.map do |stock|
         {
+          id: stock["composite_figi"],
           ticker: stock["ticker"],
           name: stock["name"]
         }
