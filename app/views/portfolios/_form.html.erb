@@ -1,0 +1,42 @@
+<h2 class="pt-8 pb-2 text-xl font-semibold">Tickers</h2>
+
+<%= form_with url: "/tickers/search" do |f| %>
+  <%= f.text_field :query,
+               placeholder: "Search by ticker or company name",
+               class: "input" %>
+  <%= f.submit "Search", class: "ml-2 btn btn-accent shrink-0" %>
+<% end %>
+
+<div id="results" class="w-full h-72">
+  <div class="flex justify-center items-center w-full h-full">
+    <p class="text-base font-semibold text-base-content/50">Use the search above to find stocks to add to your portfolio.</p>
+  </div>
+</div>
+
+<h2 class="pt-8 text-lg font-semibold">Selected Tickers</h2>
+<p class="text-sm text-base-content/50">Use the search to add tickers to your portfolio.</p>
+
+<div id="tickers" class="flex flex-wrap gap-4 pt-4"></div>
+
+<div id="count" class="px-2 pt-4">
+  <%= render partial: "tickers/count", locals: { count: @count } %>
+</div>
+
+<%= form_with(model: portfolio) do |form| %>
+  <% if portfolio.errors.any? %>
+    <div style="color: red">
+      <h2><%= pluralize(portfolio.errors.count, "error") %>
+        prohibited this portfolio from being saved:</h2>
+
+      <ul>
+        <% portfolio.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="pt-16">
+    <%= form.submit "Next", class: "btn btn-accent" %>
+  </div>
+<% end %>

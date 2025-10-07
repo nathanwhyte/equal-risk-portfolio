@@ -1,2 +1,0 @@
-class StockInfo < ApplicationRecord
-end

@@ -12,9 +12,11 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "home#index"
 
-  resources :portfolios, only: [ :index ]
+  resources :portfolios
 
-  namespace :search do
-    get "tickers", to: "tickers#search"
-  end
+  post "tickers/search", to: "tickers#search"
+
+  put "tickers/replace", to: "tickers#replace"
+  put "tickers/add", to: "tickers#add"
+  put "tickers/remove", to: "tickers#remove"
 end
