@@ -1,0 +1,18 @@
+<div
+  class="flex gap-6 items-center p-2 w-full border shadow-md border-base-300"
+>
+  <%= render partial: "tickers/info", locals: { ticker: result } %>
+
+  <div>
+    <%= button_to "Add",
+    tickers_add_path,
+    method: :put,
+    params: {
+      ticker: {
+        symbol: result.symbol,
+        name: result.name,
+      },
+    },
+    class: "btn btn-sm btn-soft btn-success" %>
+  </div>
+</div>

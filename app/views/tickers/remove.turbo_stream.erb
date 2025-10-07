@@ -1,0 +1,5 @@
+<%= turbo_stream.remove "ticker_#{@ticker.symbol}" %>
+
+<%= turbo_stream.update "count" do %>
+  <%= render partial: "tickers/count", locals: { count: @count } %>
+<% end %>

@@ -40,3 +40,8 @@
 
 # Ignore macOS Finder files.
 .DS_Store
+
+# Editor-specific files.
+*.swp
+*~
+.vscode/

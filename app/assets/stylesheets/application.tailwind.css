@@ -6,7 +6,7 @@
 @plugin "daisyui/theme" {
   name: "tws";
   default: true;
-  prefersdark: false;
+  prefersdark: true;
   color-scheme: "light";
   --color-base-100: oklch(100% 0 0);
   --color-base-200: oklch(98% 0 0);
@@ -42,7 +42,8 @@
  * dark variant for TWS theme
  * "upp" stands for "untargeted poverty problems", the inverse of "targeted wealth solutions"
  */
-@plugin "daisyui/theme" {
+
+/* @plugin "daisyui/theme" {
   name: "upp";
   default: false;
   prefersdark: true;
@@ -75,4 +76,4 @@
   --border: 1px;
   --depth: 0;
   --noise: 0;
-}
+} */

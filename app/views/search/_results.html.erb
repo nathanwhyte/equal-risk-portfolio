@@ -1,0 +1,23 @@
+<div class="flex flex-col gap-4">
+  <div class="grid grid-cols-3 grid-rows-3 gap-4">
+    <% items.each do |item| %>
+      <div
+        class="flex justify-between items-center p-4 rounded-md border shadow-md  border-base-300"
+      >
+        <div class="block max-w-4/5">
+          <p class="text-xl font-semibold"><%= item[:ticker] %></p>
+          <p class="italic text-base-content/50 truncate"><%= item[:name] %></p>
+        </div>
+
+        <%= check_box_tag "portfolio[tickers][]",
+        item[:ticker],
+        portfolio.tickers.include?(item[:ticker]),
+        data: {
+          action: "click->tickers#toggle",
+          tickers_tckr_param: "#{item[:ticker]}",
+        },
+        class: "checkbox" %>
+      </div>
+    <% end %>
+  </div>
+</div>

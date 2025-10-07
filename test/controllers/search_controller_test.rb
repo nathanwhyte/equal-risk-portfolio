@@ -1,6 +1,6 @@
 require "test_helper"
 
-class StockPriceTest < ActiveSupport::TestCase
+class SearchControllerTest < ActionDispatch::IntegrationTest
   # test "the truth" do
   #   assert true
   # end

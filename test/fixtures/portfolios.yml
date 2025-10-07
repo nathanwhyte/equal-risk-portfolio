@@ -2,10 +2,8 @@
 
 one:
   name: MyString
-  userId: MyString
-  stocks: MyText
+  tickers: ["AAPL", "GOOG", "MSFT"]
 
 two:
   name: MyString
-  userId: MyString
-  stocks: MyText
+  tickers: ["AAPL", "GOOG", "MSFT"]
