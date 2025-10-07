@@ -1,0 +1,19 @@
+<div
+  id="ticker_<%= ticker.symbol %>"
+  class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit"
+>
+  <%= render partial: "tickers/info", locals: { ticker: ticker } %>
+
+  <div>
+    <%= button_to "Remove",
+    tickers_remove_path,
+    method: :put,
+    params: {
+      ticker: {
+        symbol: ticker.symbol,
+        name: ticker.name,
+      },
+    },
+    class: "btn btn-error btn-soft btn-xs" %>
+  </div>
+</div>

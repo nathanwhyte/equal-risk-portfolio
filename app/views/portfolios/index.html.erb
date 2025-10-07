@@ -1,3 +1,16 @@
-<section class="pt-8">
-  <h1 class="pb-4 text-2xl font-semibold">Portfolios</h1>
-</section>
+<p style="color: green"><%= notice %></p>
+
+<% content_for :title, "Portfolios" %>
+
+<h1>Portfolios</h1>
+
+<div id="portfolios">
+  <% @portfolios.each do |portfolio| %>
+    <%= render portfolio %>
+    <p>
+      <%= link_to "Show this portfolio", portfolio %>
+    </p>
+  <% end %>
+</div>
+
+<%= link_to "New portfolio", new_portfolio_path %>

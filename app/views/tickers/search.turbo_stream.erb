@@ -1,0 +1,18 @@
+<%= turbo_stream.update "results" do %>
+  <div class="h-68">
+    <div class="grid grid-cols-3 grid-rows-3 gap-4 py-4 w-full min-h-full">
+      <% if !params[:query].present? %>
+        <div class="text-lg font-bold">No results found.</div>
+      <% elsif @results.empty? %>
+        <div class="flex justify-center items-center w-full h-full">
+          <p class="text-base font-semibold text-base-content/50">Use the search above to find tickers to add to your portfolio.</p>
+        </div>
+      <% else %>
+        <%= render partial: "tickers/result", collection: @results %>
+      <% end %>
+    </div>
+
+    <p class="text-xs text-base-content/50"><span class="font-bold">Didn't find what you were looking for?</span>
+      Try searching by the company or stock name.</p>
+  </div>
+<% end %>

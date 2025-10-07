@@ -10,11 +10,13 @@ Rails.application.routes.draw do
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # Defines the root path route ("/")
-  root "home#index"
+  root "portfolios#index"
 
-  resources :portfolios, only: [ :index, :new, :create ]
+  resources :portfolios
 
-  namespace :search do
-    get "tickers", to: "tickers#search"
-  end
+  post "tickers/search", to: "tickers#search"
+
+  put "tickers/replace", to: "tickers#replace"
+  put "tickers/add", to: "tickers#add"
+  put "tickers/remove", to: "tickers#remove"
 end

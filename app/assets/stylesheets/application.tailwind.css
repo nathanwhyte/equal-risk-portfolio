@@ -6,7 +6,7 @@
 @plugin "daisyui/theme" {
   name: "tws";
   default: true;
-  prefersdark: false;
+  prefersdark: true;
   color-scheme: "light";
   --color-base-100: oklch(100% 0 0);
   --color-base-200: oklch(98% 0 0);
@@ -19,45 +19,6 @@
   --color-accent: oklch(42% 0.199 265.638);
   --color-accent-content: oklch(100% 0 0);
   --color-neutral: oklch(14% 0.005 285.823);
-  --color-neutral-content: oklch(100% 0 0);
-  --color-info: oklch(86% 0.127 207.078);
-  --color-info-content: oklch(0% 0 0);
-  --color-success: oklch(69% 0.17 162.48);
-  --color-success-content: oklch(0% 0 0);
-  --color-warning: oklch(75% 0.183 55.934);
-  --color-warning-content: oklch(0% 0 0);
-  --color-error: oklch(63% 0.237 25.331);
-  --color-error-content: oklch(0% 0 0);
-  --radius-selector: 0.5rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.25rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
-}
-
-/**
- * dark variant for TWS theme
- * "upp" stands for "untargeted poverty problems", the inverse of "targeted wealth solutions"
- */
-@plugin "daisyui/theme" {
-  name: "upp";
-  default: false;
-  prefersdark: true;
-  color-scheme: "dark";
-  --color-base-100: oklch(25.33% 0.016 252.42);
-  --color-base-200: oklch(23.26% 0.014 253.1);
-  --color-base-300: oklch(21.15% 0.012 254.09);
-  --color-base-content: oklch(100% 0 0);
-  --color-primary: oklch(62% 0.214 259.815);
-  --color-primary-content: oklch(100% 0 0);
-  --color-secondary: oklch(58% 0.253 17.585);
-  --color-secondary-content: oklch(100% 0 0);
-  --color-accent: oklch(42% 0.199 265.638);
-  --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(0% 0 0);
   --color-neutral-content: oklch(100% 0 0);
   --color-info: oklch(86% 0.127 207.078);
   --color-info-content: oklch(0% 0 0);

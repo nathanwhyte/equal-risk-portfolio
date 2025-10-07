@@ -1,0 +1,13 @@
+<% content_for :title, "Editing portfolio" %>
+
+<h1>Editing portfolio</h1>
+
+<%= render "form", portfolio: @portfolio %>
+
+<br>
+
+<div>
+  <%= link_to "Show this portfolio", @portfolio %>
+  |
+  <%= link_to "Back to portfolios", portfolios_path %>
+</div>
