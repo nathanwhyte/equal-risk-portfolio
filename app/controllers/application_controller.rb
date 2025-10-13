@@ -9,4 +9,20 @@ class ApplicationController < ActionController::Base
   def assign_session_id
     session[:session_id] ||= SecureRandom.uuid
   end
+
+  def ticker_cache_key
+    "tickers:#{session[:session_id]}"
+  end
+
+  def cached_tickers
+    Rails.cache.read(ticker_cache_key) || []
+  end
+
+  def write_cached_tickers(tickers)
+    Rails.cache.write(ticker_cache_key, tickers)
+  end
+
+  def clear_cached_tickers
+    Rails.cache.delete(ticker_cache_key)
+  end
 end

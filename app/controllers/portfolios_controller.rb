@@ -12,7 +12,7 @@ class PortfoliosController < ApplicationController
 
   # GET /portfolios/new
   def new
-    session[:tickers] = []
+    clear_cached_tickers
     @count = 0
     @portfolio = Portfolio.new
     @portfolio.tickers = read_cached_tickers
@@ -80,8 +80,6 @@ class PortfoliosController < ApplicationController
     end
 
     def read_cached_tickers
-      cached_tickers = session[:tickers] || []
-
       tickers = []
       cached_tickers.map do |ticker|
         tickers << ticker["symbol"]
