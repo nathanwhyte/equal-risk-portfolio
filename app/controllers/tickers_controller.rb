@@ -58,7 +58,7 @@ class TickersController < ApplicationController
   private
 
   def check_cached_ticker
-    cached_tickers = Rails.cache.read("tickers")
+    cached_tickers = session[:tickers]
 
     if cached_tickers.nil? || cached_tickers.empty?
       return false
@@ -68,25 +68,23 @@ class TickersController < ApplicationController
   end
 
   def add_cached_ticker
-    cached_tickers = Rails.cache.read("tickers")
+    cached_tickers = session[:tickers]
 
     cached_tickers << @ticker unless cached_tickers.include?(@ticker)
 
-    Rails.cache.write("tickers", cached_tickers)
+    session[:tickers] = cached_tickers
 
     @count = cached_tickers.length
   end
 
   def remove_cached_ticker
-    cached_tickers = Rails.cache.fetch("tickers", expires_in: 1.hours) do
-      []
-    end
+    cached_tickers = session[:tickers]
 
     ticker_to_remove = cached_tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
 
     if ticker_to_remove
       cached_tickers.delete(ticker_to_remove)
-      Rails.cache.write("tickers", cached_tickers)
+      session[:tickers] = cached_tickers
     end
 
     @count = cached_tickers.length

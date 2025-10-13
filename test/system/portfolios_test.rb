@@ -14,7 +14,7 @@ class PortfoliosTest < ApplicationSystemTestCase
     visit portfolios_url
     click_on "New portfolio"
 
-    Rails.cache.write("tickers", @portfolio.tickers)
+    session[:tickers] = @portfolio.tickers
 
     click_on "Next"
   end
