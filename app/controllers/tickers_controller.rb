@@ -55,8 +55,6 @@ class TickersController < ApplicationController
     params.expect(ticker: [ :symbol, :name ])
   end
 
-  private
-
   def check_cached_ticker
     cached_tickers = session[:tickers]
 
