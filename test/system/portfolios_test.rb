@@ -13,9 +13,6 @@ class PortfoliosTest < ApplicationSystemTestCase
   test "should create portfolio" do
     visit portfolios_url
     click_on "New portfolio"
-
-    session[:tickers] = @portfolio.tickers
-
     click_on "Next"
   end
 end
