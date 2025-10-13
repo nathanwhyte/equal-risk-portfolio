@@ -64,13 +64,17 @@ class TickersController < ApplicationController
       return false
     end
 
-    cached_tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
+    cached_tickers.find { |ticker| ticker["symbol"] == ticker_params[:symbol] }
   end
 
   def add_cached_ticker
     cached_tickers = session[:tickers]
 
-    cached_tickers << @ticker unless cached_tickers.include?(@ticker)
+    ticker_hash = { "symbol" => @ticker.symbol, "name" => @ticker.name }
+
+    unless cached_tickers.any? { |t| t["symbol"] == ticker_hash["symbol"] }
+      cached_tickers << ticker_hash
+    end
 
     session[:tickers] = cached_tickers
 
@@ -80,7 +84,7 @@ class TickersController < ApplicationController
   def remove_cached_ticker
     cached_tickers = session[:tickers]
 
-    ticker_to_remove = cached_tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
+    ticker_to_remove = cached_tickers.find { |ticker| ticker["symbol"] == ticker_params[:symbol] }
 
     if ticker_to_remove
       cached_tickers.delete(ticker_to_remove)
