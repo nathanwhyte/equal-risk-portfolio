@@ -55,41 +55,41 @@ class TickersController < ApplicationController
     params.expect(ticker: [ :symbol, :name ])
   end
 
-  private
-
   def check_cached_ticker
-    cached_tickers = Rails.cache.read("tickers")
+    tickers = cached_tickers
 
-    if cached_tickers.nil? || cached_tickers.empty?
+    if tickers.nil? || tickers.empty?
       return false
     end
 
-    cached_tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
+    tickers.find { |ticker| ticker["symbol"] == ticker_params[:symbol] }
   end
 
   def add_cached_ticker
-    cached_tickers = Rails.cache.read("tickers")
+    tickers = cached_tickers
 
-    cached_tickers << @ticker unless cached_tickers.include?(@ticker)
+    ticker_hash = { "symbol" => @ticker.symbol, "name" => @ticker.name }
 
-    Rails.cache.write("tickers", cached_tickers)
+    unless tickers.any? { |t| t["symbol"] == ticker_hash["symbol"] }
+      tickers << ticker_hash
+    end
 
-    @count = cached_tickers.length
+    write_cached_tickers(tickers)
+
+    @count = tickers.length
   end
 
   def remove_cached_ticker
-    cached_tickers = Rails.cache.fetch("tickers", expires_in: 1.hours) do
-      []
-    end
+    tickers = cached_tickers
 
-    ticker_to_remove = cached_tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
+    ticker_to_remove = tickers.find { |ticker| ticker["symbol"] == ticker_params[:symbol] }
 
     if ticker_to_remove
-      cached_tickers.delete(ticker_to_remove)
-      Rails.cache.write("tickers", cached_tickers)
+      tickers.delete(ticker_to_remove)
+      write_cached_tickers(tickers)
     end
 
-    @count = cached_tickers.length
+    @count = tickers.length
   end
 
   def polygon_search(query)
