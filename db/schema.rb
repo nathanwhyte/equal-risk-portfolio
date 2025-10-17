@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_17_174436) do
   end
 
   create_table "portfolios", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "name", default: "New Portfolio"
+    t.string "name", default: "New Portfolio", null: false
     t.jsonb "tickers", default: {}
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false

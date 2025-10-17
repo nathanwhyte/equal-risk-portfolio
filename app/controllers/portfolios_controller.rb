@@ -11,12 +11,7 @@ class PortfoliosController < ApplicationController
   # GET /portfolios/1 or /portfolios/1.json
   # NOTE: should cache this somehow, currently recalling lambda each refresh
   def show
-    if @portfolio.weights.empty?
-      ticker_symbols = @portfolio.tickers.map { |ticker| ticker["symbol"] }
-      weights = call_lambda(ticker_symbols)
-
-      @portfolio.update(weights: weights)
-    end
+    @tickers = @portfolio.tickers.map { |ticker| Ticker.new(ticker) }
   end
 
   # GET /portfolios/new
@@ -27,6 +22,7 @@ class PortfoliosController < ApplicationController
   end
 
   # GET /portfolios/1/edit
+  # TODO: cache is clear at this point, either reload cache or use a different approach
   def edit
     @count = @portfolio.tickers.length
   end
@@ -34,13 +30,15 @@ class PortfoliosController < ApplicationController
   # POST /portfolios or /portfolios.json
   def create
     @portfolio = Portfolio.new
+
+    @portfolio.name = params[:portfolio][:name]
     @portfolio.tickers = cached_tickers
 
     ticker_symbols = @portfolio.tickers.map { |ticker| ticker["symbol"] }
 
-    Rails.logger.info "\n"
-    Rails.logger.info "Ticker symbols: #{ticker_symbols}"
-    Rails.logger.info "\n"
+    if ticker_symbols.length <= 0
+      return
+    end
 
     weights = call_lambda(ticker_symbols)
 

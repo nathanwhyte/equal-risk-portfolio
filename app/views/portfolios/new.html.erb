@@ -1,11 +1,10 @@
 <% content_for :title, "New portfolio" %>
 
-<h1 class="pt-8 text-3xl font-semibold">New Portfolio</h1>
+<div class="pt-4 text-sm text-base-content/75">
+  &larr;
+  <%= link_to "Back to portfolios", portfolios_path, class: "link link-hover" %>
+</div>
+
+<h1 class="pt-4 text-3xl font-semibold">Create a Portfolio</h1>
 
 <%= render "form", portfolio: @portfolio %>
-
-<br>
-
-<div>
-  <%= link_to "Back to portfolios", portfolios_path, class: "btn" %>
-</div>
