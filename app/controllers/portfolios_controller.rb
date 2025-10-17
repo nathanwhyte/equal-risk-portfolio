@@ -1,4 +1,6 @@
 class PortfoliosController < ApplicationController
+  include CallLambda
+
   before_action :set_portfolio, only: %i[ show edit update destroy ]
 
   # GET /portfolios or /portfolios.json
@@ -7,43 +9,42 @@ class PortfoliosController < ApplicationController
   end
 
   # GET /portfolios/1 or /portfolios/1.json
+  # NOTE: should cache this somehow, currently recalling lambda each refresh
   def show
-    response = AwsLambdaClient.invoke(
-      function_name: "equal-risk-lambda",
-      payload: JSON.generate(
-        {
-          "httpMethod": "GET",
-          "path": "/",
-          "requestContext": {
-            "variableName": "test"
-          },
-          "version": "1.0"
-        }
-      ),
-    )
+    if @portfolio.weights.empty?
+      ticker_symbols = @portfolio.tickers.map { |ticker| ticker["symbol"] }
+      weights = call_lambda(ticker_symbols)
 
-    Rails.logger.info("\n\n")
-    Rails.logger.info(response.payload.read)
-    Rails.logger.info("\n\n")
+      @portfolio.update(weights: weights)
+    end
   end
 
   # GET /portfolios/new
   def new
-    clear_cached_tickers
-    @count = 0
     @portfolio = Portfolio.new
-    @portfolio.tickers = read_cached_tickers
+    @tickers = cached_tickers
+    @count = cached_tickers.length
   end
 
   # GET /portfolios/1/edit
   def edit
-    @count = 0
+    @count = @portfolio.tickers.length
   end
 
   # POST /portfolios or /portfolios.json
   def create
     @portfolio = Portfolio.new
-    @portfolio.tickers = read_cached_tickers
+    @portfolio.tickers = cached_tickers
+
+    ticker_symbols = @portfolio.tickers.map { |ticker| ticker["symbol"] }
+
+    Rails.logger.info "\n"
+    Rails.logger.info "Ticker symbols: #{ticker_symbols}"
+    Rails.logger.info "\n"
+
+    weights = call_lambda(ticker_symbols)
+
+    @portfolio.weights = weights
 
     if params[:commit] == "Search"
       redirect_to tickers_search_path(query: params[:query])
@@ -58,11 +59,13 @@ class PortfoliosController < ApplicationController
         end
       end
     end
+
+    clear_cached_tickers
   end
 
   # PATCH/PUT /portfolios/1 or /portfolios/1.json
   def update
-    tickers = read_cached_tickers
+    tickers = cached_tickers
 
     respond_to do |format|
       if @portfolio.update(tickers: tickers)
@@ -95,14 +98,5 @@ class PortfoliosController < ApplicationController
   # Only allow a list of trusted parameters through.
   def portfolio_params
     params.expect(portfolio: [ :name, :tickers ])
-  end
-
-  def read_cached_tickers
-    tickers = []
-    cached_tickers.map do |ticker|
-      tickers << ticker["symbol"]
-    end
-
-    tickers
   end
 end
