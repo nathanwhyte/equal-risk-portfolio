@@ -8,6 +8,23 @@ class PortfoliosController < ApplicationController
 
   # GET /portfolios/1 or /portfolios/1.json
   def show
+    response = AwsLambdaClient.invoke(
+      function_name: "equal-risk-lambda",
+      payload: JSON.generate(
+        {
+          "httpMethod": "GET",
+          "path": "/",
+          "requestContext": {
+            "variableName": "test"
+          },
+          "version": "1.0"
+        }
+      ),
+    )
+
+    Rails.logger.info("\n\n")
+    Rails.logger.info(response.payload.read)
+    Rails.logger.info("\n\n")
   end
 
   # GET /portfolios/new
@@ -69,22 +86,23 @@ class PortfoliosController < ApplicationController
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
-    def set_portfolio
-      @portfolio = Portfolio.find(params.expect(:id))
+
+  # Use callbacks to share common setup or constraints between actions.
+  def set_portfolio
+    @portfolio = Portfolio.find(params.expect(:id))
+  end
+
+  # Only allow a list of trusted parameters through.
+  def portfolio_params
+    params.expect(portfolio: [ :name, :tickers ])
+  end
+
+  def read_cached_tickers
+    tickers = []
+    cached_tickers.map do |ticker|
+      tickers << ticker["symbol"]
     end
 
-    # Only allow a list of trusted parameters through.
-    def portfolio_params
-      params.expect(portfolio: [ :name, :tickers ])
-    end
-
-    def read_cached_tickers
-      tickers = []
-      cached_tickers.map do |ticker|
-        tickers << ticker["symbol"]
-      end
-
-      tickers
-    end
+    tickers
+  end
 end

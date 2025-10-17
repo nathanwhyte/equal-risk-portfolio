@@ -20,6 +20,8 @@ gem "cssbundling-rails"
 gem "jbuilder"
 # Makes http fun again! [https://github.com/jnunemaker/httparty]
 gem "httparty"
+# AWS Lambda SDK [https://docs.aws.amazon.com/sdk-for-ruby/v3/api/Aws/Lambda.html]
+gem "aws-sdk-lambda"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
