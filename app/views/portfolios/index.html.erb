@@ -13,12 +13,18 @@
   id="portfolios"
   class="grid grid-cols-3 grid-flow-row gap-4 grid-rows-auto"
 >
-  <% @portfolios.each do |portfolio| %>
+  <% if !@portfolios %>
     <div class="p-4 rounded-md border border-base-300">
-      <%= render portfolio %>
-      <div class="pt-2">
-        <%= link_to "Show this portfolio", portfolio, class: "btn btn-sm" %>
-      </div>
+      <p>No portfolios yet.</p>
     </div>
+  <% else %>
+    <% @portfolios.each do |portfolio| %>
+      <div class="p-4 rounded-md border border-base-300">
+        <%= render portfolio %>
+        <div class="pt-2">
+          <%= link_to "Show this portfolio", portfolio, class: "btn btn-sm" %>
+        </div>
+      </div>
+    <% end %>
   <% end %>
 </div>

@@ -37,7 +37,8 @@ class TickersController < ApplicationController
 
   def search
     if params[:query].present?
-      @results = polygon_search(params[:query])
+      query = params[:query].upcase
+      @results = polygon_search(query)
     else
       @results = []
     end

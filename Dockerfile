@@ -2,8 +2,8 @@
 # check=error=true
 
 # This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t eqrsk .
-# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name eqrsk eqrsk
+# docker build -t equal_risk_portfolio .
+# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name equal_risk_portfolio equal_risk_portfolio
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
@@ -45,7 +45,7 @@ RUN bundle install && \
     bundle exec bootsnap precompile --gemfile
 
 # Install node modules
-COPY package.json bun.lockb ./
+COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 
 # Copy application code
@@ -77,5 +77,5 @@ USER 1000:1000
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
 # Start server via Thruster by default, this can be overwritten at runtime
-EXPOSE 80
+EXPOSE 8080
 CMD ["./bin/thrust", "./bin/rails", "server"]

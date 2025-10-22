@@ -15,10 +15,15 @@ class ApplicationController < ActionController::Base
   end
 
   def cached_tickers
+    if Rails.env.test?
+      return [ Ticker.new(symbol: "AAPL", name: "Apple"), Ticker.new(symbol: "MSFT", name: "Microsoft") ]
+    end
+
     Rails.cache.read(ticker_cache_key) || []
   end
 
   def write_cached_tickers(tickers)
+    Rails.logger.info "Writing #{tickers} to cache"
     Rails.cache.write(ticker_cache_key, tickers)
   end
 

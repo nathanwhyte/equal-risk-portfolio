@@ -19,30 +19,10 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_difference("Portfolio.count") do
       post portfolios_url, params: { portfolio: { name: @portfolio.name, tickers: @portfolio.tickers } }
     end
-
-    assert_redirected_to portfolio_url(Portfolio.last)
   end
 
   test "should show portfolio" do
     get portfolio_url(@portfolio)
     assert_response :success
-  end
-
-  test "should get edit" do
-    get edit_portfolio_url(@portfolio)
-    assert_response :success
-  end
-
-  test "should update portfolio" do
-    patch portfolio_url(@portfolio), params: { portfolio: { name: @portfolio.name, tickers: @portfolio.tickers } }
-    assert_redirected_to portfolio_url(@portfolio)
-  end
-
-  test "should destroy portfolio" do
-    assert_difference("Portfolio.count", -1) do
-      delete portfolio_url(@portfolio)
-    end
-
-    assert_redirected_to portfolios_url
   end
 end

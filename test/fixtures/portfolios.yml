@@ -2,8 +2,19 @@
 
 one:
   name: MyString
-  tickers: ["AAPL", "GOOG", "MSFT"]
+  tickers:
+    - symbol: AAPL
+      name: Apple
+  weights:
+    AAPL: 0.5
 
 two:
   name: MyString
-  tickers: ["AAPL", "GOOG", "MSFT"]
+  tickers:
+    - symbol: AAPL
+      name: Apple
+    - symbol: MSFT
+      name: Microsoft
+  weights:
+    AAPL: 0.5
+    MSFT: 0.5
