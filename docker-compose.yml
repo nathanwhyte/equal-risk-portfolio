@@ -2,6 +2,7 @@ services:
   web:
     # image: nathanwhyte/sandbox:equal-risk-portfolio-rails
     build: .
+    restart: always
     ports:
       - 3000:3000
     environment:
@@ -27,6 +28,7 @@ services:
     build:
       context: api
       dockerfile: Dockerfile
+    restart: always
     expose:
       - 3001
     environment:
