@@ -3,9 +3,9 @@
 one:
   ticker: MyString
   date: MyString
-  price: 1.5
+  close: 1.5
 
 two:
   ticker: MyString
   date: MyString
-  price: 1.5
+  close: 1.5
