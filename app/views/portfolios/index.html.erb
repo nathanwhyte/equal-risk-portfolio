@@ -13,7 +13,7 @@
   id="portfolios"
   class="grid grid-cols-3 grid-flow-row gap-4 grid-rows-auto"
 >
-  <% if !@portfolios %>
+  <% if @portfolios.empty? %>
     <div class="p-4 rounded-md border border-base-300">
       <p>No portfolios yet.</p>
     </div>

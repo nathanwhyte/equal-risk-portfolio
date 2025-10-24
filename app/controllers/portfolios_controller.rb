@@ -2,7 +2,7 @@ class PortfoliosController < ApplicationController
   before_action :set_portfolio, only: %i[ show ]
 
   def index
-    @portfolios = Portfolio.all || []
+    @portfolios = Portfolio.all
   end
 
   def show
