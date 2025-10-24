@@ -1,6 +1,6 @@
 services:
   web:
-    # image: nathanwhyte/sandbox:equal-risk-portfolio-rails
+    image: nathanwhyte/sandbox:equal-risk-portfolio-rails
     build: .
     restart: always
     ports:
@@ -24,7 +24,7 @@ services:
       - api
 
   api:
-    # image: nathanwhyte/sandbox:equal-risk-portfolio-api
+    image: nathanwhyte/sandbox:equal-risk-portfolio-api
     build:
       context: api
       dockerfile: Dockerfile
