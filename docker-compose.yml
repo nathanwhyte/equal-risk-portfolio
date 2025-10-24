@@ -1,0 +1,63 @@
+services:
+  web:
+    image: nathanwhyte/sandbox:equal-risk-portfolio-rails
+    build: .
+    restart: always
+    ports:
+      - 3000:3000
+    environment:
+      API_URL: http://api:3001
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
+      EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
+      EQUAL_RISK_PORTFOLIO_DATABASE: ${EQUAL_RISK_PORTFOLIO_DATABASE}
+    develop:
+      watch:
+        - action: rebuild
+          path: app
+          target: rails
+        - action: sync
+          path: config
+          target: rails
+    depends_on:
+      - db
+      - api
+
+  api:
+    image: nathanwhyte/sandbox:equal-risk-portfolio-api
+    build:
+      context: api
+      dockerfile: Dockerfile
+    restart: always
+    expose:
+      - 3001
+    environment:
+      POLYGON_API_KEY: ${POLYGON_API_KEY}
+      EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
+      EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
+      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db:5432
+      EQUAL_RISK_PORTFOLIO_DATABASE: ${EQUAL_RISK_PORTFOLIO_DATABASE}
+    develop:
+      watch:
+        - action: rebuild
+          path: ./api/app
+          target: python
+    depends_on:
+      - db
+
+  db:
+    image: postgres
+    expose:
+      - 5432
+    restart: always
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
+      POSTGRES_DB: ${EQUAL_RISK_PORTFOLIO_DATABASE}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+    name: equal-risk-portfolio-pgdata

@@ -13,8 +13,6 @@ export default class extends Controller {
     console.log("selectedValueChanged");
     console.log(this.selectedValue);
 
-    // TODO: return early if selectedValue is empty
-
     const params = new URLSearchParams({
       portfolio_id: this.idValue,
       tickers: this.selectedValue,

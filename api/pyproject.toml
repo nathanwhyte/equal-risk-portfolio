@@ -1,0 +1,20 @@
+[project]
+name = "equal-risk-portfolio-api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+  "aws-lambda-powertools>=3.21.0",
+  "fastapi[standard]",
+  "mangum",
+  "numpy>=2.3.4",
+  "pandas>=2.3.3",
+  "polygon-api-client>=1.16.1",
+  "psycopg2-binary>=2.9.11",
+  "scipy>=1.16.2",
+  "sqlalchemy>=2.0.44",
+]
+
+[dependency-groups]
+dev = ["ipykernel>=7.0.1", "pip>=25.2", "requests>=2.32.5", "ruff>=0.14.0"]

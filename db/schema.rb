@@ -10,13 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_06_162215) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_21_194903) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pgcrypto"
 
-  create_table "portfolios", force: :cascade do |t|
-    t.string "name", default: "New Portfolio"
-    t.text "tickers", default: [], array: true
+  create_table "close_prices", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "ticker"
+    t.string "date"
+    t.float "close"
+    t.index ["ticker"], name: "index_close_prices_on_ticker"
+  end
+
+  create_table "portfolios", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name"
+    t.jsonb "tickers"
+    t.jsonb "weights"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end

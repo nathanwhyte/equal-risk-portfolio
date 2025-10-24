@@ -1,0 +1,2 @@
+class ClosePrice < ApplicationRecord
+end

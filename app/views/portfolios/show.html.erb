@@ -1,11 +1,31 @@
 <p style="color: green"><%= notice %></p>
 
-<%= render @portfolio %>
+<div class="flex flex-col gap-12 pt-8">
+  <p>
+    <span class="text-lg font-semibold text-base-content/75">Name</span>
+    <span class="block text-3xl font-bold">
+      <%= @portfolio.name %>
+    </span>
+  </p>
 
-<div>
-  <%= link_to "Edit this portfolio", edit_portfolio_path(@portfolio) %>
-  |
-  <%= link_to "Back to portfolios", portfolios_path %>
+  <div>
+    <span class="text-lg font-semibold text-base-content/75">Tickers and Weights</span>
+    <div class="flex flex-wrap gap-4 pt-4">
+      <% for ticker in @tickers %>
+        <div
+          class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit"
+        >
+          <%= render partial: "weight",
+          locals: {
+            ticker: ticker,
+            weight: @portfolio.weights[ticker.symbol],
+          } %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
 
-  <%= button_to "Destroy this portfolio", @portfolio, method: :delete %>
+<div class="pt-8">
+  <%= link_to "Back to portfolios", portfolios_path, class: "btn" %>
 </div>

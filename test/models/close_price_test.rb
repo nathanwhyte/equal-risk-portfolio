@@ -1,6 +1,6 @@
 require "test_helper"
 
-class TickersControllerTest < ActionDispatch::IntegrationTest
+class ClosePriceTest < ActiveSupport::TestCase
   # test "the truth" do
   #   assert true
   # end

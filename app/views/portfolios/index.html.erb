@@ -2,15 +2,29 @@
 
 <% content_for :title, "Portfolios" %>
 
-<h1>Portfolios</h1>
-
-<div id="portfolios">
-  <% @portfolios.each do |portfolio| %>
-    <%= render portfolio %>
-    <p>
-      <%= link_to "Show this portfolio", portfolio %>
-    </p>
-  <% end %>
+<div class="flex gap-8 items-center">
+  <h1 class="py-4 text-3xl font-semibold">Portfolios</h1>
+  <%= link_to "Create a Portfolio",
+  new_portfolio_path,
+  class: "btn btn-accent btn-sm btn-soft" %>
 </div>
 
-<%= link_to "New portfolio", new_portfolio_path %>
+<div
+  id="portfolios"
+  class="grid grid-cols-3 grid-flow-row gap-4 grid-rows-auto"
+>
+  <% if @portfolios.empty? %>
+    <div class="p-4 rounded-md border border-base-300">
+      <p>No portfolios yet.</p>
+    </div>
+  <% else %>
+    <% @portfolios.each do |portfolio| %>
+      <div class="p-4 rounded-md border border-base-300">
+        <%= render portfolio %>
+        <div class="pt-2">
+          <%= link_to "Show this portfolio", portfolio, class: "btn btn-sm" %>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+</div>

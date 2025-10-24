@@ -17,7 +17,6 @@ class TickersController < ApplicationController
         end
       end
     else
-
       add_cached_ticker
 
       respond_to do |format|
@@ -38,7 +37,8 @@ class TickersController < ApplicationController
 
   def search
     if params[:query].present?
-      @results = polygon_search(params[:query])
+      query = params[:query].upcase
+      @results = polygon_search(query)
     else
       @results = []
     end
@@ -62,16 +62,14 @@ class TickersController < ApplicationController
       return false
     end
 
-    tickers.find { |ticker| ticker["symbol"] == ticker_params[:symbol] }
+    tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
   end
 
   def add_cached_ticker
     tickers = cached_tickers
 
-    ticker_hash = { "symbol" => @ticker.symbol, "name" => @ticker.name }
-
-    unless tickers.any? { |t| t["symbol"] == ticker_hash["symbol"] }
-      tickers << ticker_hash
+    unless tickers.any? { |t| t.symbol == @ticker.symbol }
+      tickers << Ticker.new(symbol: @ticker.symbol, name: @ticker.name)
     end
 
     write_cached_tickers(tickers)
@@ -82,7 +80,7 @@ class TickersController < ApplicationController
   def remove_cached_ticker
     tickers = cached_tickers
 
-    ticker_to_remove = tickers.find { |ticker| ticker["symbol"] == ticker_params[:symbol] }
+    ticker_to_remove = tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
 
     if ticker_to_remove
       tickers.delete(ticker_to_remove)
@@ -96,16 +94,16 @@ class TickersController < ApplicationController
     key = Rails.application.credentials.dig(:polygon, :api_key)
 
     response = HTTParty.get("https://api.polygon.io/v3/reference/tickers",
-                 query: {
-                   type: "CS",
-                   market: "stocks",
-                   search: query,
-                   active: true,
-                   order: "asc",
-                   limit: 9,
-                   sort: "ticker",
-                   apiKey: key
-                 })
+                            query: {
+                              type: "CS",
+                              market: "stocks",
+                              ticker: query,
+                              active: true,
+                              order: "asc",
+                              limit: 9,
+                              sort: "ticker",
+                              apiKey: key
+                            })
 
     if response.success?
       res = response.parsed_response["results"]
