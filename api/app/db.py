@@ -37,10 +37,6 @@ def init_db_engine() -> Engine:
     pg_host = os.getenv("EQUAL_RISK_PORTFOLIO_DATABASE_HOST")
     pg_db = os.getenv("EQUAL_RISK_PORTFOLIO_DATABASE")
 
-    print("\n\n")
-    print(f"Connecting to database: postgresql+psycopg2://{pg_user}:{pg_pass}@{pg_host}/{pg_db}")
-    print("\n\n")
-
     db_url = f"postgresql+psycopg2://{pg_user}:{pg_pass}@{pg_host}/{pg_db}"
 
     return create_engine(db_url)
