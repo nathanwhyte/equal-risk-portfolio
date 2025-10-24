@@ -26,6 +26,10 @@ class PortfoliosController < ApplicationController
     ticker_symbols = @portfolio.tickers.map { |ticker| ticker["symbol"] }
 
     if ticker_symbols.length <= 0
+      @portfolio.errors.add(:tickers, "must include at least one ticker")
+      @tickers = cached_tickers
+      @count = cached_tickers.length
+      render :new, status: :unprocessable_entity
       return
     end
 
@@ -39,6 +43,8 @@ class PortfoliosController < ApplicationController
       if @portfolio.save
         redirect_to @portfolio, notice: "Portfolio was successfully created."
       else
+        @tickers = cached_tickers
+        @count = cached_tickers.length
         render :new, status: :unprocessable_entity
       end
     end
