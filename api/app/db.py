@@ -28,7 +28,7 @@ class ClosePrice(Base):  # pyright: ignore[reportAny]
 
     @override
     def __repr__(self):
-        return f"Close(id={self.id!r}, ticker={self.ticker!r}, date={self.date!r}, price={self.price!r})"
+        return f"Close(id={self.id!r}, ticker={self.ticker!r}, date={self.date!r}, close={self.close!r})"
 
 
 def init_db_engine() -> Engine:
