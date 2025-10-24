@@ -2,10 +2,13 @@ import os
 from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
+from polygon import (
+    RESTClient,  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType]
+)
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-polygon_client = os.getenv("POLYGON_API_KEY")
+polygon_client = RESTClient(os.getenv("POLYGON_API_KEY"))
 
 today = date.today()
 yesterday = today - timedelta(days=1)
