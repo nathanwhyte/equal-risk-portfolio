@@ -5,6 +5,8 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     @portfolio = portfolios(:one)
     # Set API_URL for tests
     ENV["API_URL"] = "http://localhost:8000"
+    # Clear cache before each test to ensure clean state
+    Rails.cache.clear
   end
 
   private
@@ -49,6 +51,12 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
         headers: { "Content-Type" => "application/json" }
       )
 
+    # Set up cache with tickers (since we removed the test environment mock data)
+    get new_portfolio_url
+    session_id = session[:session_id]
+    cache_key = "tickers:new:#{session_id}"
+    Rails.cache.write(cache_key, [ Ticker.new(symbol: "AAPL", name: "Apple"), Ticker.new(symbol: "MSFT", name: "Microsoft") ])
+
     assert_difference("Portfolio.count") do
       post portfolios_url, params: { portfolio: { name: @portfolio.name, tickers: @portfolio.tickers } }
     end
@@ -83,6 +91,16 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
         }.to_json,
         headers: { "Content-Type" => "application/json" }
       )
+
+    # Set up cache with tickers (edit action populates cache from portfolio)
+    get edit_portfolio_url(@portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{@portfolio.id}"
+    # Add another ticker to the cache
+    Rails.cache.write(cache_key, [
+      Ticker.new(symbol: "AAPL", name: "Apple"),
+      Ticker.new(symbol: "MSFT", name: "Microsoft")
+    ])
 
     # The update method only updates tickers and weights, not the name
     # So we test that the tickers and weights are updated
@@ -161,5 +179,97 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     # Rails will catch the exception and return a 404 response
     delete portfolio_url(id: temp_id)
     assert_response :not_found
+  end
+
+  test "edit action writes tickers to portfolio-specific cache" do
+    get edit_portfolio_url(@portfolio)
+
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{@portfolio.id}"
+
+    # Verify cache was written with portfolio's existing tickers
+    cached = Rails.cache.read(cache_key)
+    assert_not_nil cached, "Cache should contain tickers after edit"
+    assert_operator cached.length, :>, 0, "Cache should have tickers"
+  end
+
+  test "update action reads from portfolio-specific cache and clears it" do
+    api_url = ENV.fetch("API_URL", "http://localhost:8000")
+
+    stub_request(:post, "#{api_url}/calculate")
+      .with(
+        body: hash_including("tickers"),
+        headers: { "Content-Type" => "application/json" }
+      )
+      .to_return(
+        status: 200,
+        body: {
+          weights: [
+            { ticker: "AAPL", weight: 0.6 },
+            { ticker: "MSFT", weight: 0.4 }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # First, edit to set up the cache
+    get edit_portfolio_url(@portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{@portfolio.id}"
+
+    # Verify cache has data
+    assert_not_nil Rails.cache.read(cache_key)
+
+    # Now update
+    patch portfolio_url(@portfolio), params: {
+      portfolio: {
+        tickers: [
+          { symbol: "AAPL", name: "Apple" },
+          { symbol: "MSFT", name: "Microsoft" }
+        ]
+      }
+    }
+
+    assert_redirected_to portfolio_url(@portfolio)
+
+    # Verify cache was cleared after successful update
+    assert_nil Rails.cache.read(cache_key), "Cache should be cleared after update"
+  end
+
+  test "cache isolation between new and edit sessions" do
+    portfolio_two = Portfolio.create!(
+      name: "Second Portfolio",
+      tickers: [ { symbol: "MSFT", name: "Microsoft" } ],
+      weights: { "MSFT" => 1.0 }
+    )
+
+    begin
+      get new_portfolio_url
+      session_id = session[:session_id]
+
+      new_cache_key = "tickers:new:#{session_id}"
+      edit_cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio_two.id}"
+
+      # Write to new cache
+      Rails.cache.write(new_cache_key, [ Ticker.new(symbol: "AAPL", name: "Apple") ])
+
+      # Edit sets up portfolio cache
+      get edit_portfolio_url(portfolio_two)
+
+      # Verify keys are different and caches are isolated
+      assert_not_equal new_cache_key, edit_cache_key
+
+      new_cached = Rails.cache.read(new_cache_key)
+      edit_cached = Rails.cache.read(edit_cache_key)
+
+      assert_not_nil new_cached, "New cache should exist"
+      assert_not_nil edit_cached, "Edit cache should exist"
+
+      # They should contain different data
+      assert new_cached.any? { |t| t.symbol == "AAPL" }
+      assert edit_cached.any? { |t| t.symbol == "MSFT" }
+    ensure
+      portfolio_two.destroy
+    end
   end
 end

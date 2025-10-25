@@ -1,6 +1,7 @@
 <h2 class="pt-8 pb-2 text-xl font-semibold">Tickers</h2>
 
 <%= form_with url: "/tickers/search" do |f| %>
+  <%= hidden_field_tag :portfolio_id, portfolio.id %>
   <%= f.text_field :query,
                placeholder: "Search by ticker or company name",
                autocomplete: "off",

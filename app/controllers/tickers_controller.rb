@@ -55,8 +55,12 @@ class TickersController < ApplicationController
     params.expect(ticker: [ :symbol, :name ])
   end
 
+  def portfolio_id_param
+    params[:portfolio_id].presence
+  end
+
   def check_cached_ticker
-    tickers = cached_tickers
+    tickers = cached_tickers(portfolio_id_param)
 
     if tickers.nil? || tickers.empty?
       return false
@@ -66,25 +70,25 @@ class TickersController < ApplicationController
   end
 
   def add_cached_ticker
-    tickers = cached_tickers
+    tickers = cached_tickers(portfolio_id_param)
 
     unless tickers.any? { |t| t.symbol == @ticker.symbol }
       tickers << Ticker.new(symbol: @ticker.symbol, name: @ticker.name)
     end
 
-    write_cached_tickers(tickers)
+    write_cached_tickers(tickers, portfolio_id_param)
 
     @count = tickers.length
   end
 
   def remove_cached_ticker
-    tickers = cached_tickers
+    tickers = cached_tickers(portfolio_id_param)
 
     ticker_to_remove = tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
 
     if ticker_to_remove
       tickers.delete(ticker_to_remove)
-      write_cached_tickers(tickers)
+      write_cached_tickers(tickers, portfolio_id_param)
     end
 
     @count = tickers.length
