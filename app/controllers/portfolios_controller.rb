@@ -1,5 +1,5 @@
 class PortfoliosController < ApplicationController
-  before_action :set_portfolio, only: %i[ show ]
+  before_action :set_portfolio, only: %i[ show edit update destroy ]
 
   def index
     @portfolios = Portfolio.all
@@ -33,7 +33,16 @@ class PortfoliosController < ApplicationController
       return
     end
 
-    @portfolio.weights = call_math_engine(ticker_symbols)
+    begin
+      @portfolio.weights = call_math_engine(ticker_symbols)
+    rescue => e
+      Rails.logger.error "API call failed: #{e.message}"
+      @portfolio.errors.add(:base, "There was a problem creating the portfolio. Please try again.")
+      @tickers = cached_tickers
+      @count = cached_tickers.length
+      render :new, status: :unprocessable_entity
+      return
+    end
 
     Rails.logger.info "\n\nPortfolio #{@portfolio.name} created with tickers #{@portfolio.tickers.map { |ticker| ticker["symbol"] }} and weights #{@portfolio.weights}\n\n"
 
@@ -50,6 +59,44 @@ class PortfoliosController < ApplicationController
     end
 
     clear_cached_tickers
+  end
+
+  def edit
+    tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
+    write_cached_tickers(tickers)
+    @count = tickers.length
+    @tickers = tickers
+  end
+
+  def update
+    tickers = cached_tickers
+    @portfolio.tickers = tickers
+
+    begin
+      @portfolio.weights = call_math_engine(tickers.map { |ticker| ticker.symbol })
+    rescue => e
+      Rails.logger.error "API call failed: #{e.message}"
+      @portfolio.errors.add(:base, "There was a problem updating the portfolio. Please try again.")
+      @tickers = tickers
+      @count = tickers.length
+      render :edit, status: :unprocessable_entity
+      return
+    end
+
+    if @portfolio.save
+      redirect_to @portfolio, notice: "Portfolio was successfully updated."
+    else
+      @tickers = tickers
+      @count = tickers.length
+      render :edit, status: :unprocessable_entity
+    end
+
+    clear_cached_tickers
+  end
+
+  def destroy
+    @portfolio.destroy
+    redirect_to portfolios_url, notice: "Portfolio was successfully destroyed."
   end
 
   private
