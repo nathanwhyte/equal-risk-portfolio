@@ -1,5 +1,5 @@
 class PortfoliosController < ApplicationController
-  before_action :set_portfolio, only: %i[ show ]
+  before_action :set_portfolio, only: %i[ show destroy ]
 
   def index
     @portfolios = Portfolio.all
@@ -50,6 +50,11 @@ class PortfoliosController < ApplicationController
     end
 
     clear_cached_tickers
+  end
+
+  def destroy
+    @portfolio.destroy
+    redirect_to portfolios_url, notice: "Portfolio was successfully destroyed."
   end
 
   private
