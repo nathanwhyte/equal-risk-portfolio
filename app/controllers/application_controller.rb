@@ -10,24 +10,29 @@ class ApplicationController < ActionController::Base
     session[:session_id] ||= SecureRandom.uuid
   end
 
-  def ticker_cache_key
-    "tickers:#{session[:session_id]}"
+  def ticker_cache_key(portfolio_id = nil)
+    if portfolio_id
+      "tickers:edit:#{session[:session_id]}:portfolio_#{portfolio_id}"
+    else
+      "tickers:new:#{session[:session_id]}"
+    end
   end
 
-  def cached_tickers
+  def cached_tickers(portfolio_id = nil)
+    # TODO: remove this in favor of mocking/stubbing
     if Rails.env.test?
       return [ Ticker.new(symbol: "AAPL", name: "Apple"), Ticker.new(symbol: "MSFT", name: "Microsoft") ]
     end
 
-    Rails.cache.read(ticker_cache_key) || []
+    Rails.cache.read(ticker_cache_key(portfolio_id)) || []
   end
 
-  def write_cached_tickers(tickers)
-    Rails.logger.info "Writing #{tickers} to cache"
-    Rails.cache.write(ticker_cache_key, tickers)
+  def write_cached_tickers(tickers, portfolio_id = nil)
+    Rails.logger.info "Writing #{tickers} to cache with key: #{ticker_cache_key(portfolio_id)}"
+    Rails.cache.write(ticker_cache_key(portfolio_id), tickers)
   end
 
-  def clear_cached_tickers
-    Rails.cache.delete(ticker_cache_key)
+  def clear_cached_tickers(portfolio_id = nil)
+    Rails.cache.delete(ticker_cache_key(portfolio_id))
   end
 end

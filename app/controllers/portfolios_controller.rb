@@ -63,13 +63,13 @@ class PortfoliosController < ApplicationController
 
   def edit
     tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
-    write_cached_tickers(tickers)
+    write_cached_tickers(tickers, @portfolio.id)
     @count = tickers.length
     @tickers = tickers
   end
 
   def update
-    tickers = cached_tickers
+    tickers = cached_tickers(@portfolio.id)
     @portfolio.tickers = tickers
 
     begin
@@ -91,7 +91,7 @@ class PortfoliosController < ApplicationController
       render :edit, status: :unprocessable_entity
     end
 
-    clear_cached_tickers
+    clear_cached_tickers(@portfolio.id)
   end
 
   def destroy
