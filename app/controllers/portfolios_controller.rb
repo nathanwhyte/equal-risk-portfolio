@@ -1,5 +1,5 @@
 class PortfoliosController < ApplicationController
-  before_action :set_portfolio, only: %i[ show destroy ]
+  before_action :set_portfolio, only: %i[ show edit update destroy ]
 
   def index
     @portfolios = Portfolio.all
@@ -47,6 +47,26 @@ class PortfoliosController < ApplicationController
         @count = cached_tickers.length
         render :new, status: :unprocessable_entity
       end
+    end
+
+    clear_cached_tickers
+  end
+
+  def edit
+    tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
+    write_cached_tickers(tickers)
+    @count = tickers.length
+    @tickers = tickers
+  end
+
+  def update
+    tickers = cached_tickers
+    @portfolio.tickers = tickers
+    @portfolio.weights = call_math_engine(tickers.map { |ticker| ticker.symbol })
+    if @portfolio.save
+      redirect_to @portfolio, notice: "Portfolio was successfully updated."
+    else
+      render :edit, status: :unprocessable_entity
     end
 
     clear_cached_tickers

@@ -12,7 +12,7 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "home#index"
 
-  resources :portfolios, except: %i[ edit update ]
+  resources :portfolios
 
   post "tickers/search", to: "tickers#search"
   put "tickers/replace", to: "tickers#replace"

@@ -9,11 +9,18 @@
       </span>
     </div>
 
-    <div>
-      <%= button_to "Destroy",
-      @portfolio,
-      method: :delete,
-      class: "btn btn-error btn-soft" %>
+    <div class="flex gap-2">
+      <div>
+        <%= link_to "Edit",
+        edit_portfolio_path(@portfolio),
+        class: "btn btn-accent btn-soft" %>
+      </div>
+      <div>
+        <%= button_to "Destroy",
+        @portfolio,
+        method: :delete,
+        class: "btn btn-error btn-soft" %>
+      </div>
     </div>
   </div>
 
