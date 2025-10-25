@@ -95,7 +95,6 @@ class TickersController < ApplicationController
 
     response = HTTParty.get("https://api.polygon.io/v3/reference/tickers",
                             query: {
-                              type: "CS",
                               market: "stocks",
                               ticker: query,
                               active: true,
