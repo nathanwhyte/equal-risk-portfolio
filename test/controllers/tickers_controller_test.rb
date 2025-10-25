@@ -1,12 +1,17 @@
 require "test_helper"
 
 class TickersControllerTest < ActionDispatch::IntegrationTest
+  # Disable parallel execution for these tests since they rely on shared cache state
+  parallelize(workers: 1)
+
   setup do
     @portfolio = portfolios(:one)
-    Rails.application.credentials.config[:polygon] = { api_key: "test_key" }
+    # Clear cache before each test to ensure clean state
+    Rails.cache.clear
 
     # Stub Polygon API for search tests
     stub_request(:get, /api\.polygon\.io\/v3\/reference\/tickers/)
+      .with(query: hash_including("apiKey"))
       .to_return(
         status: 200,
         body: {
@@ -22,58 +27,63 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
   test "add ticker uses new cache when no portfolio_id provided" do
     get new_portfolio_url
     session_id = session[:session_id]
-    cache_key = "tickers:new:#{session_id}"
-
-    # Clear cache first
-    Rails.cache.delete(cache_key)
 
     put tickers_add_path, params: {
-      ticker: { symbol: "AAPL", name: "Apple" }
+      ticker: { symbol: "TSLA", name: "Tesla" }
     }, as: :turbo_stream
 
-    # In test environment, cached_tickers returns mock data
-    # So we verify the cache key would be used by checking the controller method
     assert_response :success
+
+    # Verify ticker was added to the correct cache
+    cache_key = "tickers:new:#{session_id}"
+    cached_tickers = Rails.cache.read(cache_key) || []
+    assert cached_tickers.any? { |t| t.symbol == "TSLA" }, "Ticker should be in new cache"
   end
 
   test "add ticker uses edit cache when portfolio_id provided" do
     get edit_portfolio_url(@portfolio)
     session_id = session[:session_id]
-    cache_key = "tickers:edit:#{session_id}:portfolio_#{@portfolio.id}"
-
-    # Clear cache first
-    Rails.cache.delete(cache_key)
 
     put tickers_add_path, params: {
-      ticker: { symbol: "AAPL", name: "Apple" },
+      ticker: { symbol: "TSLA", name: "Tesla" },
       portfolio_id: @portfolio.id
     }, as: :turbo_stream
 
     assert_response :success
+
+    # Verify ticker was added to the correct cache
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{@portfolio.id}"
+    cached_tickers = Rails.cache.read(cache_key) || []
+    assert cached_tickers.any? { |t| t.symbol == "TSLA" }, "Ticker should be in portfolio-specific cache"
   end
 
-  test "remove ticker uses new cache when no portfolio_id provided" do
+  test "remove ticker removes from correct cache" do
     get new_portfolio_url
+    session_id = session[:session_id]
 
+    # First add a ticker
+    put tickers_add_path, params: {
+      ticker: { symbol: "TSLA", name: "Tesla" }
+    }, as: :turbo_stream
+
+    # Verify it's there
+    cache_key = "tickers:new:#{session_id}"
+    cached_tickers = Rails.cache.read(cache_key) || []
+    assert cached_tickers.any? { |t| t.symbol == "TSLA" }
+
+    # Now remove it
     put tickers_remove_path, params: {
-      ticker: { symbol: "AAPL", name: "Apple" }
+      ticker: { symbol: "TSLA", name: "Tesla" }
     }, as: :turbo_stream
 
     assert_response :success
+
+    # Verify it's gone
+    cached_tickers = Rails.cache.read(cache_key) || []
+    assert_not cached_tickers.any? { |t| t.symbol == "TSLA" }, "Ticker should be removed from cache"
   end
 
-  test "remove ticker uses edit cache when portfolio_id provided" do
-    get edit_portfolio_url(@portfolio)
-
-    put tickers_remove_path, params: {
-      ticker: { symbol: "AAPL", name: "Apple" },
-      portfolio_id: @portfolio.id
-    }, as: :turbo_stream
-
-    assert_response :success
-  end
-
-  test "search passes portfolio_id to results view" do
+  test "search passes portfolio_id to controller" do
     get new_portfolio_url
 
     post tickers_search_path, params: {
@@ -82,7 +92,6 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
     }, as: :turbo_stream
 
     assert_response :success
-    # Note: In test env, assigns(:portfolio_id) is set by search action
   end
 
   test "search works without portfolio_id for new portfolio" do
@@ -102,38 +111,52 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
       weights: { "MSFT" => 1.0 }
     )
 
-    get new_portfolio_url
-    session_id = session[:session_id]
+    begin
+      get new_portfolio_url
+      session_id = session[:session_id]
 
-    cache_key_one = "tickers:edit:#{session_id}:portfolio_#{@portfolio.id}"
-    cache_key_two = "tickers:edit:#{session_id}:portfolio_#{portfolio_two.id}"
+      # Add different tickers to each portfolio cache
+      put tickers_add_path, params: {
+        ticker: { symbol: "AAPL", name: "Apple" },
+        portfolio_id: @portfolio.id
+      }, as: :turbo_stream
 
-    # Verify keys are unique per portfolio
-    assert_not_equal cache_key_one, cache_key_two
-    assert_includes cache_key_one, @portfolio.id.to_s
-    assert_includes cache_key_two, portfolio_two.id.to_s
+      put tickers_add_path, params: {
+        ticker: { symbol: "GOOGL", name: "Google" },
+        portfolio_id: portfolio_two.id
+      }, as: :turbo_stream
 
-    portfolio_two.destroy
+      # Verify isolation
+      cache_key_one = "tickers:edit:#{session_id}:portfolio_#{@portfolio.id}"
+      cache_key_two = "tickers:edit:#{session_id}:portfolio_#{portfolio_two.id}"
+
+      cached_one = Rails.cache.read(cache_key_one) || []
+      cached_two = Rails.cache.read(cache_key_two) || []
+
+      assert cached_one.any? { |t| t.symbol == "AAPL" }, "Portfolio one should have AAPL"
+      assert_not cached_one.any? { |t| t.symbol == "GOOGL" }, "Portfolio one should not have GOOGL"
+
+      assert cached_two.any? { |t| t.symbol == "GOOGL" }, "Portfolio two should have GOOGL"
+      assert_not cached_two.any? { |t| t.symbol == "AAPL" }, "Portfolio two should not have AAPL"
+    ensure
+      portfolio_two.destroy
+    end
   end
 
   test "portfolio_id_param helper returns nil when not present" do
-    get new_portfolio_url
-
     put tickers_add_path, params: {
       ticker: { symbol: "AAPL", name: "Apple" }
-    }
+    }, as: :turbo_stream
 
     controller = @controller
     assert_nil controller.send(:portfolio_id_param)
   end
 
   test "portfolio_id_param helper returns portfolio_id when present" do
-    get edit_portfolio_url(@portfolio)
-
     put tickers_add_path, params: {
       ticker: { symbol: "AAPL", name: "Apple" },
       portfolio_id: @portfolio.id
-    }
+    }, as: :turbo_stream
 
     controller = @controller
     assert_equal @portfolio.id.to_s, controller.send(:portfolio_id_param)

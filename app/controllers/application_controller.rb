@@ -19,11 +19,6 @@ class ApplicationController < ActionController::Base
   end
 
   def cached_tickers(portfolio_id = nil)
-    # TODO: remove this in favor of mocking/stubbing
-    if Rails.env.test?
-      return [ Ticker.new(symbol: "AAPL", name: "Apple"), Ticker.new(symbol: "MSFT", name: "Microsoft") ]
-    end
-
     Rails.cache.read(ticker_cache_key(portfolio_id)) || []
   end
 
