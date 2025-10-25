@@ -7,6 +7,17 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     ENV["API_URL"] = "http://localhost:8000"
   end
 
+  private
+
+  # Helper method to create and destroy a portfolio, returning the destroyed portfolio's ID
+  # Useful for testing 404 responses for non-existent portfolios
+  def create_and_destroy_portfolio
+    temp_portfolio = Portfolio.create!(name: "Temp", tickers: [ { symbol: "AAPL", name: "Apple" } ], weights: { "AAPL" => 1.0 })
+    temp_id = temp_portfolio.id
+    temp_portfolio.destroy!
+    temp_id
+  end
+
   test "should get index" do
     get portfolios_url
     assert_response :success
@@ -106,8 +117,8 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     }
 
     # Expect a graceful response, e.g., re-rendering the edit page with an error message
-    assert_response :success
-    assert_select ".alert", /There was a problem updating the portfolio/
+    assert_response :unprocessable_entity
+    assert_select "div[style*='color: red']", /There was a problem updating the portfolio/
   end
 
   test "should destroy portfolio" do
@@ -120,9 +131,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
 
   test "should get edit for non-existent portfolio" do
     # Create a portfolio and then delete it to ensure it doesn't exist
-    temp_portfolio = Portfolio.create!(name: "Temp", tickers: [ { symbol: "AAPL", name: "Apple" } ], weights: { "AAPL" => 1.0 })
-    temp_id = temp_portfolio.id
-    temp_portfolio.destroy!
+    temp_id = create_and_destroy_portfolio
 
     # Verify the portfolio is actually deleted
     assert_raises(ActiveRecord::RecordNotFound) do
@@ -136,9 +145,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
 
   test "should not update non-existent portfolio" do
     # Create a portfolio and then delete it to ensure it doesn't exist
-    temp_portfolio = Portfolio.create!(name: "Temp", tickers: [ { symbol: "AAPL", name: "Apple" } ], weights: { "AAPL" => 1.0 })
-    temp_id = temp_portfolio.id
-    temp_portfolio.destroy!
+    temp_id = create_and_destroy_portfolio
 
     # Rails will catch the exception and return a 404 response
     patch portfolio_url(id: temp_id), params: {
@@ -149,9 +156,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
 
   test "should not destroy non-existent portfolio" do
     # Create a portfolio and then delete it to ensure it doesn't exist
-    temp_portfolio = Portfolio.create!(name: "Temp", tickers: [ { symbol: "AAPL", name: "Apple" } ], weights: { "AAPL" => 1.0 })
-    temp_id = temp_portfolio.id
-    temp_portfolio.destroy!
+    temp_id = create_and_destroy_portfolio
 
     # Rails will catch the exception and return a 404 response
     delete portfolio_url(id: temp_id)
