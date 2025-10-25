@@ -93,22 +93,21 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should handle API failure gracefully" do
-    # Test update when the API call fails - this exposes a bug in the controller
-    # where it doesn't handle API failures gracefully
+    # Test update when the API call fails - the controller should handle this gracefully
     api_url = ENV.fetch("API_URL", "http://localhost:8000")
     stub_request(:post, "#{api_url}/calculate")
       .to_return(status: 500, body: "Internal Server Error")
 
-    # This test documents the current behavior (which is that it crashes)
-    # In a real application, the controller should handle this error gracefully
-    assert_raises(NoMethodError) do
-      patch portfolio_url(@portfolio), params: {
-        portfolio: {
-          name: "Updated Portfolio",
-          tickers: []
-        }
+    patch portfolio_url(@portfolio), params: {
+      portfolio: {
+        name: "Updated Portfolio",
+        tickers: []
       }
-    end
+    }
+
+    # Expect a graceful response, e.g., re-rendering the edit page with an error message
+    assert_response :success
+    assert_select ".alert", /There was a problem updating the portfolio/
   end
 
   test "should destroy portfolio" do
