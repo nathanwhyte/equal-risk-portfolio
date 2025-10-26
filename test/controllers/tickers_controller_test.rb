@@ -6,6 +6,8 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
 
   setup do
     @portfolio = portfolios(:one)
+    @user = users(:one)
+    sign_in_as(@user)
     # Clear cache before each test to ensure clean state
     Rails.cache.clear
 
