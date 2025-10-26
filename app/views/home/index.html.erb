@@ -6,9 +6,15 @@
         <h1 class="text-7xl font-bold">Equal Risk Calculator</h1>
       </div>
 
-      <div class="py-16">
-        <%= link_to "See Portfolios", portfolios_path, class: "btn btn-accent btn-lg" %>
-      </div>
+      <% if authenticated? %>
+        <div class="py-16">
+          <%= link_to "See Portfolios", portfolios_path, class: "btn btn-accent btn-lg" %>
+        </div>
+      <% else %>
+        <div class="py-16">
+          <%= link_to "Sign In", new_session_path, class: "btn btn-accent btn-lg" %>
+        </div>
+      <% end %>
     </div>
   </div>
 </section>
