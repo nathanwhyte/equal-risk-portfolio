@@ -12,6 +12,9 @@ Rails.application.routes.draw do
   # Defines the root path route ("/")
   root "home#index"
 
+  resource :session
+  resources :passwords, param: :token
+
   resources :portfolios
 
   post "tickers/search", to: "tickers#search"

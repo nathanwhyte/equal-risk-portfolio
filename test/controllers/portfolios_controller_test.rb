@@ -3,6 +3,8 @@ require "test_helper"
 class PortfoliosControllerTest < ActionDispatch::IntegrationTest
   setup do
     @portfolio = portfolios(:one)
+    @user = users(:one)
+    sign_in_as(@user)
     # Set API_URL for tests
     ENV["API_URL"] = "http://localhost:8000"
     # Clear cache before each test to ensure clean state

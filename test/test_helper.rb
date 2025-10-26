@@ -1,6 +1,7 @@
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
+require_relative "test_helpers/session_test_helper"
 require "webmock/minitest"
 
 # Allow connections to localhost for Selenium/Capybara
@@ -16,4 +17,9 @@ module ActiveSupport
 
     # Add more helper methods to be used by all tests here...
   end
+end
+
+# Ensure integration tests have access to the SignedCookieAccessor
+ActiveSupport.on_load(:action_dispatch_integration_test) do
+  include SessionTestHelper
 end
