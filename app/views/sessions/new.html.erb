@@ -1,20 +1,34 @@
-<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
-<%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
+<div class="py-24 hero">
+  <div class="flex-col items-start hero-content">
+    <%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
+    <%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
 
-<%= form_with url: session_path do |form| %>
-  <%= form.email_field :email_address,
-                   required: true,
-                   autofocus: true,
-                   autocomplete: "username",
-                   placeholder: "Enter your email address",
-                   value: params[:email_address] %><br>
-  <%= form.password_field :password,
-                      required: true,
-                      autocomplete: "current-password",
-                      placeholder: "Enter your password",
-                      maxlength: 72 %><br>
-  <%= form.submit "Sign in" %>
-<% end %>
-<br>
+    <div class="py-4">
+      <h1 class="text-xl text-base-content/50">Sign In to</h1>
+      <h1 class="text-4xl font-bold">Equal Risk Portfolio Calculator</h1>
+    </div>
+    <%= form_with url: session_path, class: "flex flex-col gap-4" do |form| %>
+      <fieldset class="fieldset">
+        <legend class="text-xl font-semibold fieldset-legend">Email Address</legend>
+        <%= form.email_field :email_address,
+                         required: true,
+                         autofocus: true,
+                         autocomplete: "username",
+                         placeholder: "Enter your email address",
+                         value: params[:email_address],
+                         class: "input input-bordered" %>
 
-<%= link_to "Forgot password?", new_password_path %>
+      </fieldset>
+      <fieldset class="fieldset">
+        <legend class="text-xl font-semibold fieldset-legend">Password</legend>
+        <%= form.password_field :password,
+                            required: true,
+                            autocomplete: "current-password",
+                            placeholder: "Enter your password",
+                            maxlength: 72,
+                            class: "input input-bordered" %><br>
+        <%= form.submit "Sign in", class: "btn btn-accent btn-lg w-fit" %>
+      </fieldset>
+    <% end %>
+  </div>
+</div>
