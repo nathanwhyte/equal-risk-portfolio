@@ -71,6 +71,7 @@ class PortfoliosController < ApplicationController
   def update
     tickers = cached_tickers(@portfolio.id)
     @portfolio.tickers = tickers
+    @portfolio.name = portfolio_params[:name]
 
     begin
       @portfolio.weights = call_math_engine(tickers.map { |ticker| ticker.symbol })

@@ -108,6 +108,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     # So we test that the tickers and weights are updated
     patch portfolio_url(@portfolio), params: {
       portfolio: {
+        name: "MyUpdatedString",
         tickers: [
           { symbol: "AAPL", name: "Apple" },
           { symbol: "MSFT", name: "Microsoft" }
@@ -118,6 +119,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to portfolio_url(@portfolio)
     @portfolio.reload
     # Verify the tickers were updated
+    assert_equal "MyUpdatedString", @portfolio.name
     assert_equal 2, @portfolio.tickers.length
     assert_equal "AAPL", @portfolio.tickers.first["symbol"]
     assert_equal "MSFT", @portfolio.tickers.last["symbol"]
@@ -225,6 +227,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     # Now update
     patch portfolio_url(@portfolio), params: {
       portfolio: {
+        name: "MyUpdatedString",
         tickers: [
           { symbol: "AAPL", name: "Apple" },
           { symbol: "MSFT", name: "Microsoft" }
