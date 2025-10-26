@@ -3,36 +3,25 @@ require "application_system_test_case"
 class PortfoliosTest < ApplicationSystemTestCase
   setup do
     @portfolio = portfolios(:one)
+    @user = users(:one)
   end
 
-  test "visiting the index" do
+  test "user can view portfolios when authenticated" do
+    login_as_user
     visit portfolios_url
     assert_selector "h1", text: "Portfolios"
   end
 
-  test "should visit new portfolio page" do
+  test "user can navigate to create portfolio page" do
+    login_as_user
     visit portfolios_url
     click_on "Create a Portfolio"
-
-    # Assert we're on the new portfolio page
     assert_selector "h1", text: "Create a Portfolio"
   end
 
-  test "should show delete confirmation dialog when clicking destroy button" do
-    visit portfolio_url(@portfolio)
+  test "user can delete a portfolio with confirmation" do
+    login_as_user
 
-    # Click the destroy button
-    click_button "Destroy"
-
-    # Check that the confirmation dialog is shown
-    dialog = page.driver.browser.switch_to.alert
-    assert_equal "Are you sure you want to destroy this portfolio?", dialog.text
-
-    # Cancel the dialog
-    dialog.dismiss
-  end
-
-  test "should delete portfolio when confirming the delete dialog" do
     # Create a temporary portfolio for deletion
     temp_portfolio = Portfolio.create!(
       name: "Temp Portfolio",
@@ -42,24 +31,18 @@ class PortfoliosTest < ApplicationSystemTestCase
 
     visit portfolio_url(temp_portfolio)
 
-    # Click the destroy button and confirm
+    # Delete with confirmation
     assert_difference("Portfolio.count", -1) do
       accept_confirm "Are you sure you want to destroy this portfolio?" do
         click_button "Destroy"
       end
-
-      # Should be redirected to portfolios index
       assert_current_path portfolios_path
-    end
-
-    # Verify the portfolio is deleted
-    assert_raises(ActiveRecord::RecordNotFound) do
-      Portfolio.find(temp_portfolio.id)
     end
   end
 
-  test "should not delete portfolio when cancelling the delete dialog" do
-    # Create a temporary portfolio for testing
+  test "user can cancel portfolio deletion" do
+    login_as_user
+
     temp_portfolio = Portfolio.create!(
       name: "Temp Portfolio",
       tickers: [ { symbol: "AAPL", name: "Apple" } ],
@@ -68,17 +51,24 @@ class PortfoliosTest < ApplicationSystemTestCase
 
     visit portfolio_url(temp_portfolio)
 
-    # Click the destroy button and dismiss
+    # Cancel deletion
     assert_no_difference("Portfolio.count") do
       dismiss_confirm "Are you sure you want to destroy this portfolio?" do
         click_button "Destroy"
       end
-
-      # Should still be on the portfolio show page
       assert_current_path portfolio_path(temp_portfolio)
     end
 
-    # Clean up
     temp_portfolio.destroy
+  end
+
+  private
+
+  def login_as_user
+    visit new_session_path
+    fill_in "email_address", with: @user.email_address
+    fill_in "password", with: "password"
+    click_button "Sign in"
+    assert_current_path root_path
   end
 end

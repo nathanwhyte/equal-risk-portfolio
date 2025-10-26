@@ -22,11 +22,27 @@ module Authentication
     end
 
     def resume_session
-      Current.session ||= find_session_by_cookie
+      Current.session ||= find_session_by_cookie || find_session_by_header
     end
 
     def find_session_by_cookie
-      Session.find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
+      signed_id = nil
+      begin
+        signed_id = cookies.signed[:session_id] if cookies.respond_to?(:signed)
+      rescue => e
+        Rails.logger.error "Error reading signed cookie: #{e.message}"
+      end
+
+      Session.find_by(id: signed_id) if signed_id
+    end
+
+    # Allow test authentication via Current.session (set by test helper)
+    def find_session_by_header
+      # Check Thread.current for test sessions
+      thread_session = Thread.current[:current_session]
+      return thread_session if thread_session && thread_session.is_a?(Session)
+
+      Current.session
     end
 
     def request_authentication

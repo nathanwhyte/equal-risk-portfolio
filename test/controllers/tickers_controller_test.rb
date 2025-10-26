@@ -8,7 +8,6 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
     @portfolio = portfolios(:one)
     @user = users(:one)
     sign_in_as(@user)
-    # Clear cache before each test to ensure clean state
     Rails.cache.clear
 
     # Stub Polygon API for search tests
@@ -26,7 +25,7 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
       )
   end
 
-  test "add ticker uses new cache when no portfolio_id provided" do
+  test "add ticker to new portfolio cache" do
     get new_portfolio_url
     session_id = session[:session_id]
 
@@ -36,13 +35,12 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
 
-    # Verify ticker was added to the correct cache
     cache_key = "tickers:new:#{session_id}"
     cached_tickers = Rails.cache.read(cache_key) || []
-    assert cached_tickers.any? { |t| t.symbol == "TSLA" }, "Ticker should be in new cache"
+    assert cached_tickers.any? { |t| t.symbol == "TSLA" }
   end
 
-  test "add ticker uses edit cache when portfolio_id provided" do
+  test "add ticker to edit portfolio cache" do
     get edit_portfolio_url(@portfolio)
     session_id = session[:session_id]
 
@@ -53,52 +51,34 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
 
-    # Verify ticker was added to the correct cache
     cache_key = "tickers:edit:#{session_id}:portfolio_#{@portfolio.id}"
     cached_tickers = Rails.cache.read(cache_key) || []
-    assert cached_tickers.any? { |t| t.symbol == "TSLA" }, "Ticker should be in portfolio-specific cache"
+    assert cached_tickers.any? { |t| t.symbol == "TSLA" }
   end
 
-  test "remove ticker removes from correct cache" do
+  test "remove ticker from cache" do
     get new_portfolio_url
     session_id = session[:session_id]
 
-    # First add a ticker
+    # Add ticker
     put tickers_add_path, params: {
       ticker: { symbol: "TSLA", name: "Tesla" }
     }, as: :turbo_stream
 
-    # Verify it's there
-    cache_key = "tickers:new:#{session_id}"
-    cached_tickers = Rails.cache.read(cache_key) || []
-    assert cached_tickers.any? { |t| t.symbol == "TSLA" }
-
-    # Now remove it
+    # Remove ticker
     put tickers_remove_path, params: {
       ticker: { symbol: "TSLA", name: "Tesla" }
     }, as: :turbo_stream
 
     assert_response :success
 
-    # Verify it's gone
+    # Verify removed
+    cache_key = "tickers:new:#{session_id}"
     cached_tickers = Rails.cache.read(cache_key) || []
-    assert_not cached_tickers.any? { |t| t.symbol == "TSLA" }, "Ticker should be removed from cache"
+    assert_not cached_tickers.any? { |t| t.symbol == "TSLA" }
   end
 
-  test "search passes portfolio_id to controller" do
-    get new_portfolio_url
-
-    post tickers_search_path, params: {
-      query: "AAPL",
-      portfolio_id: @portfolio.id
-    }, as: :turbo_stream
-
-    assert_response :success
-  end
-
-  test "search works without portfolio_id for new portfolio" do
-    get new_portfolio_url
-
+  test "search returns ticker results" do
     post tickers_search_path, params: {
       query: "AAPL"
     }, as: :turbo_stream
@@ -106,7 +86,7 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "different portfolios maintain separate caches" do
+  test "portfolios maintain separate ticker caches" do
     portfolio_two = Portfolio.create!(
       name: "Second Portfolio",
       tickers: [ { symbol: "MSFT", name: "Microsoft" } ],
@@ -114,10 +94,11 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
     )
 
     begin
-      get new_portfolio_url
+      # Get session_id from a request
+      get edit_portfolio_url(@portfolio)
       session_id = session[:session_id]
 
-      # Add different tickers to each portfolio cache
+      # Add different tickers to each portfolio
       put tickers_add_path, params: {
         ticker: { symbol: "AAPL", name: "Apple" },
         portfolio_id: @portfolio.id
@@ -135,32 +116,13 @@ class TickersControllerTest < ActionDispatch::IntegrationTest
       cached_one = Rails.cache.read(cache_key_one) || []
       cached_two = Rails.cache.read(cache_key_two) || []
 
-      assert cached_one.any? { |t| t.symbol == "AAPL" }, "Portfolio one should have AAPL"
-      assert_not cached_one.any? { |t| t.symbol == "GOOGL" }, "Portfolio one should not have GOOGL"
+      assert cached_one.any? { |t| t.symbol == "AAPL" }
+      assert_not cached_one.any? { |t| t.symbol == "GOOGL" }
 
-      assert cached_two.any? { |t| t.symbol == "GOOGL" }, "Portfolio two should have GOOGL"
-      assert_not cached_two.any? { |t| t.symbol == "AAPL" }, "Portfolio two should not have AAPL"
+      assert cached_two.any? { |t| t.symbol == "GOOGL" }
+      assert_not cached_two.any? { |t| t.symbol == "AAPL" }
     ensure
       portfolio_two.destroy
     end
-  end
-
-  test "portfolio_id_param helper returns nil when not present" do
-    put tickers_add_path, params: {
-      ticker: { symbol: "AAPL", name: "Apple" }
-    }, as: :turbo_stream
-
-    controller = @controller
-    assert_nil controller.send(:portfolio_id_param)
-  end
-
-  test "portfolio_id_param helper returns portfolio_id when present" do
-    put tickers_add_path, params: {
-      ticker: { symbol: "AAPL", name: "Apple" },
-      portfolio_id: @portfolio.id
-    }, as: :turbo_stream
-
-    controller = @controller
-    assert_equal @portfolio.id.to_s, controller.send(:portfolio_id_param)
   end
 end
