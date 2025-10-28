@@ -8,7 +8,11 @@
           <p class="text-base font-semibold text-base-content/50">Use the search above to find stocks.</p>
         </div>
       <% else %>
-        <%= render partial: "tickers/result", collection: @results %>
+        <%= render partial: "tickers/result",
+        collection: @results,
+        locals: {
+          portfolio_id: params[:portfolio_id],
+        } %>
       <% end %>
     </div>
 
