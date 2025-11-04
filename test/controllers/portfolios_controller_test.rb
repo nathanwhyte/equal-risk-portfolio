@@ -550,4 +550,74 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0.5, portfolio.weights["AAPL"]
     assert_equal 0.5, portfolio.weights["MSFT"]
   end
+
+  test "should prevent total allocations from exceeding 100%" do
+    portfolio = Portfolio.create!(
+      name: "Test Portfolio",
+      tickers: [ { symbol: "AAPL", name: "Apple" } ],
+      weights: { "AAPL" => 1.0 },
+      allocations: {
+        "Cash" => { "weight" => 60, "enabled" => true }
+      }
+    )
+
+    patch portfolio_url(portfolio), params: {
+      update_allocations: "true",
+      allocation_name: "Bonds",
+      allocation_weight: "50"
+    }
+
+    assert_response :unprocessable_entity
+    portfolio.reload
+    assert_equal 1, portfolio.allocations.keys.length, "Allocation should not be added when total exceeds 100%"
+    # Check that error message is in the response body
+    assert_match(/exceed|100%/, response.body, "Should display error about allocations exceeding 100%")
+  end
+
+  test "should prevent duplicate allocation names (case-insensitive)" do
+    portfolio = Portfolio.create!(
+      name: "Test Portfolio",
+      tickers: [ { symbol: "AAPL", name: "Apple" } ],
+      weights: { "AAPL" => 1.0 },
+      allocations: {
+        "Cash" => { "weight" => 20, "enabled" => true }
+      }
+    )
+
+    # Try to add duplicate with different case
+    patch portfolio_url(portfolio), params: {
+      update_allocations: "true",
+      allocation_name: "CASH",
+      allocation_weight: "10"
+    }
+
+    assert_response :unprocessable_entity
+    portfolio.reload
+    assert_equal 1, portfolio.allocations.keys.length, "Duplicate allocation should not be added"
+    # Check that error message is in the response body
+    assert_match(/already exists/, response.body, "Should display error about duplicate allocation name")
+  end
+
+  test "should allow exactly 100% total allocations" do
+    portfolio = Portfolio.create!(
+      name: "Test Portfolio",
+      tickers: [ { symbol: "AAPL", name: "Apple" } ],
+      weights: { "AAPL" => 1.0 },
+      allocations: {
+        "Cash" => { "weight" => 50, "enabled" => true }
+      }
+    )
+
+    patch portfolio_url(portfolio), params: {
+      update_allocations: "true",
+      allocation_name: "Bonds",
+      allocation_weight: "50"
+    }
+
+    assert_redirected_to portfolio_url(portfolio)
+    portfolio.reload
+    assert_equal 2, portfolio.allocations.keys.length
+    assert_equal 50.0, portfolio.allocations["Cash"]["weight"]
+    assert_equal 50.0, portfolio.allocations["Bonds"]["weight"]
+  end
 end

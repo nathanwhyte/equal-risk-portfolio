@@ -8,6 +8,9 @@ class PortfoliosController < ApplicationController
   def show
     @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
 
+    # Create adjusted weights for display (don't mutate @portfolio.weights)
+    @adjusted_weights = @portfolio.weights.dup
+
     if !@portfolio.allocations.nil?
       # Only count enabled allocations (normalize in memory for calculation)
       allocation_sum = 0
@@ -18,10 +21,14 @@ class PortfoliosController < ApplicationController
         end
       end
 
-      allocation_adjustment = 1.0 - allocation_sum
+      # Adjustment formula:
+      # If allocations sum to X%, then stock weights are adjusted by (1 - X)
+      # Example: 20% bonds allocation ? stock weights multiplied by 0.8
+      # Guard against negative adjustments if allocations exceed 100%
+      allocation_adjustment = [ 1.0 - allocation_sum, 0.0 ].max
 
-      @portfolio.weights.each do |ticker, weight|
-        @portfolio.weights[ticker] = weight * allocation_adjustment
+      @adjusted_weights.each do |ticker, weight|
+        @adjusted_weights[ticker] = weight * allocation_adjustment
       end
     end
 
@@ -170,11 +177,25 @@ class PortfoliosController < ApplicationController
         @portfolio.errors.add(:allocations, "Allocation name cannot be blank")
       elsif allocation_weight <= 0 || allocation_weight > 100
         @portfolio.errors.add(:allocations, "Allocation weight must be between 0 and 100")
+      elsif new_allocations.any? { |name, _| name.downcase == allocation_name.downcase }
+        @portfolio.errors.add(:allocations, "An allocation with this name already exists")
       else
         new_allocations[allocation_name] = {
           "weight" => allocation_weight,
           "enabled" => true
         }
+      end
+    end
+
+    # Validate total allocations don't exceed 100%
+    unless @portfolio.errors.any?
+      total_allocation = new_allocations.sum do |_name, data|
+        allocation = normalize_allocation_value(data)
+        allocation[:enabled] ? (allocation[:weight].to_f / 100.0) : 0
+      end
+
+      if total_allocation > 1.0
+        @portfolio.errors.add(:allocations, "Total allocations cannot exceed 100%")
       end
     end
 
@@ -190,8 +211,37 @@ class PortfoliosController < ApplicationController
     else
       Rails.logger.error "Failed to save allocations: #{@portfolio.errors.full_messages.inspect}"
       @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+      @adjusted_weights = calculate_adjusted_weights(@portfolio)
       render :show, status: :unprocessable_entity
     end
+  end
+
+  # Calculate adjusted weights based on allocations
+  # Adjustment formula:
+  # If allocations sum to X%, then stock weights are adjusted by (1 - X)
+  # Example: 20% bonds allocation ? stock weights multiplied by 0.8
+  # Guard against negative adjustments if allocations exceed 100%
+  def calculate_adjusted_weights(portfolio)
+    adjusted_weights = portfolio.weights.dup
+
+    return adjusted_weights if portfolio.allocations.nil?
+
+    # Only count enabled allocations (normalize in memory for calculation)
+    allocation_sum = 0
+    portfolio.allocations.each do |_name, allocation_data|
+      allocation = normalize_allocation_value(allocation_data)
+      if allocation[:enabled]
+        allocation_sum += (allocation[:weight].to_f / 100.0)
+      end
+    end
+
+    allocation_adjustment = [ 1.0 - allocation_sum, 0.0 ].max
+
+    adjusted_weights.each do |ticker, weight|
+      adjusted_weights[ticker] = weight * allocation_adjustment
+    end
+
+    adjusted_weights
   end
 
   # Normalize allocation value to hash format (handles backward compatibility)

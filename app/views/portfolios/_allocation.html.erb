@@ -12,9 +12,10 @@
         weight = allocation_data.to_f
         enabled = true
       end
-      disabled_class = enabled ? "" : "opacity-50" %>
+      disabled_class = enabled ? "" : "opacity-50"
+      toggle_button_class = enabled ? "btn btn-xs btn-ghost" : "btn-success btn-soft" %>
       <div
-        class="flex gap-6 items-center p-2 max-w-xs border shadow-md border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
+        class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
       >
         <div class="flex justify-between items-center w-full">
           <div class="block shrink truncate">
@@ -33,7 +34,7 @@
             toggle_allocation: name,
             update_allocations: "true",
           },
-          class: "#{enabled ?"btn btn-xs btn-ghost" : "btn-success btn-soft"}" %>
+          class: toggle_button_class %>
           <%= button_to "Remove",
           portfolio_path(portfolio),
           method: :patch,
@@ -50,7 +51,7 @@
 
 <%= form_with(model: portfolio, url: portfolio_path(portfolio), method: :patch) do |form| %>
   <% if portfolio.errors.any? %>
-    <div style="color: red">
+    <div class="text-red-600">
       <h2><%= pluralize(portfolio.errors.count, "error") %>
         prohibited this portfolio from being saved:</h2>
 
