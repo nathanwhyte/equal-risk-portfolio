@@ -39,7 +39,7 @@
   <div>
     <div class="text-lg font-semibold text-base-content/75">
       Tickers and Weights
-      <% if @portfolio.allocations.values.any? { |a| a["enabled"] } %>
+      <% if @portfolio.allocations and @portfolio.allocations.values.any? { |a| a["enabled"] } %>
         <span class="ml-2 font-normal badge badge-warning badge-xs">
           Adjusted for Allocations
         </span>
