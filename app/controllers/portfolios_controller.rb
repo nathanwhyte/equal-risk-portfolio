@@ -9,9 +9,13 @@ class PortfoliosController < ApplicationController
     @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
 
     if !@portfolio.allocations.nil?
+      # Only count enabled allocations (normalize in memory for calculation)
       allocation_sum = 0
-      for allocation in @portfolio.allocations.values
-        allocation_sum  += (allocation.to_f / 100.0)
+      @portfolio.allocations.each do |_name, allocation_data|
+        allocation = normalize_allocation_value(allocation_data)
+        if allocation[:enabled]
+          allocation_sum += (allocation[:weight].to_f / 100.0)
+        end
       end
 
       allocation_adjustment = 1.0 - allocation_sum
@@ -134,7 +138,22 @@ class PortfoliosController < ApplicationController
   def handle_allocations_update
     # Initialize allocations hash if nil
     current_allocations = @portfolio.allocations || {}
-    new_allocations = current_allocations.dup
+    new_allocations = current_allocations.deep_dup
+
+    # Normalize existing allocations to new structure
+    normalize_allocations_hash(new_allocations)
+
+    # Handle toggle enabled/disabled
+    if params[:toggle_allocation].present?
+      allocation_name = params[:toggle_allocation]
+      if new_allocations[allocation_name].present?
+        allocation = normalize_allocation_value(new_allocations[allocation_name])
+        new_allocations[allocation_name] = {
+          "weight" => allocation[:weight],
+          "enabled" => !allocation[:enabled]
+        }
+      end
+    end
 
     # Handle removal
     if params[:remove_allocation].present?
@@ -152,12 +171,17 @@ class PortfoliosController < ApplicationController
       elsif allocation_weight <= 0 || allocation_weight > 100
         @portfolio.errors.add(:allocations, "Allocation weight must be between 0 and 100")
       else
-        new_allocations[allocation_name] = allocation_weight
+        new_allocations[allocation_name] = {
+          "weight" => allocation_weight,
+          "enabled" => true
+        }
       end
     end
 
-    # Assign the new allocations hash to trigger change detection
-    @portfolio.allocations = new_allocations
+    # Only assign new allocations if there are no errors
+    unless @portfolio.errors.any?
+      @portfolio.allocations = new_allocations
+    end
 
     Rails.logger.info "Saving allocations: #{@portfolio.allocations.inspect}"
 
@@ -167,6 +191,32 @@ class PortfoliosController < ApplicationController
       Rails.logger.error "Failed to save allocations: #{@portfolio.errors.full_messages.inspect}"
       @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
       render :show, status: :unprocessable_entity
+    end
+  end
+
+  # Normalize allocation value to hash format (handles backward compatibility)
+  def normalize_allocation_value(value)
+    if value.is_a?(Hash)
+      {
+        weight: value["weight"] || value[:weight] || value.to_f,
+        enabled: value["enabled"] != false && value[:enabled] != false
+      }
+    else
+      {
+        weight: value.to_f,
+        enabled: true
+      }
+    end
+  end
+
+  # Normalize allocations hash (in-place)
+  def normalize_allocations_hash(allocations)
+    allocations.each do |name, value|
+      allocation = normalize_allocation_value(value)
+      allocations[name] = {
+        "weight" => allocation[:weight],
+        "enabled" => allocation[:enabled]
+      }
     end
   end
 
