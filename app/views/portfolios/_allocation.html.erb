@@ -11,8 +11,9 @@
         weight = allocation_data.to_f
         enabled = true
       end
-      disabled_class = enabled ? "" : "opacity-50"
-      toggle_button_class = enabled ? "btn btn-xs btn-ghost" : "btn-success btn-soft" %>
+      disabled_class = enabled ? "" : "opacity-50 bg-base-200"
+      toggle_button_class =
+        enabled ? "btn btn-xs btn-ghost" : "btn btn-xs btn-success btn-soft" %>
       <div
         class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
       >
@@ -34,6 +35,7 @@
             update_allocations: "true",
           },
           class: toggle_button_class %>
+
           <%= button_to "Remove",
           portfolio_path(portfolio),
           method: :patch,
@@ -64,7 +66,7 @@
     </div>
   <% end %>
 
-  <div class="pt-8 pb-2 font-semibold text-base-content/75">Add an Allocation</div>
+  <div class="pt-8 pb-2 font-semibold text-base-content/75">Create an Allocation</div>
   <p class="flex flex-col gap-4 pb-1 text-xs text-base-content/50">
     Each allocation will simulate reserving a percentage of the portfolio's
     total value to assets separate from the equal risk stocks.
@@ -73,14 +75,14 @@
     For example, given an allocation "Bonds" set at 20%, it will reduce the
     weight of each equal risk stock by 20%.
   </p>
-  <div class="flex gap-4 items-center">
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
     <%= form.text_field :allocation_name,
                     placeholder: "Allocation name, e.g. \"Bonds\"",
-                    class: "input",
+                    class: "input input-sm",
                     name: "allocation_name" %>
     <%= form.number_field :allocation_weight,
                       placeholder: "Weight %",
-                      class: "input",
+                      class: "input input-sm",
                       name: "allocation_weight",
                       step: 0.01,
                       min: 0,
@@ -88,7 +90,7 @@
     <%= hidden_field_tag :update_allocations, "true" %>
 
     <div>
-      <%= form.submit "Add", class: "btn btn-soft btn-success" %>
+      <%= form.submit "Create", class: "btn btn-soft btn-success btn-xs" %>
     </div>
   </div>
 <% end %>
