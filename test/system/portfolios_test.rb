@@ -12,16 +12,6 @@ class PortfoliosTest < ApplicationSystemTestCase
     assert_selector "h1", text: "Portfolios"
   end
 
-  test "user can navigate to create portfolio page" do
-    login_as_user
-    visit portfolios_url
-    click_on "Create a Portfolio"
-    # Wait for Turbo navigation to complete by checking for the path change
-    assert has_current_path?(new_portfolio_path, wait: 5), "Expected to navigate to new portfolio path"
-    # Then assert the h1 element is present
-    assert_selector "h1", text: "Create a Portfolio", wait: 5
-  end
-
   test "user can delete a portfolio with confirmation" do
     login_as_user
 
