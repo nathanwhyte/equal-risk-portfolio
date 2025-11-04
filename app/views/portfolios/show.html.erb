@@ -1,6 +1,11 @@
 <p style="color: green"><%= notice %></p>
 
-<div class="flex flex-col gap-12 pt-8">
+<div class="pt-4 text-sm text-base-content/75">
+  &larr;
+  <%= link_to "Back to portfolios", portfolios_path, class: "link link-hover" %>
+</div>
+
+<div class="flex flex-col gap-8 pt-4">
   <div class="flex gap-2 justify-between items-center">
     <div>
       <span class="text-lg font-semibold text-base-content/75">Name</span>
@@ -30,7 +35,7 @@
 
   <div>
     <span class="text-lg font-semibold text-base-content/75">Tickers and Weights</span>
-    <div class="flex flex-wrap gap-4 pt-4">
+    <div class="flex flex-wrap gap-4 pt-2">
       <% for ticker in @tickers %>
         <div
           class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit"
@@ -46,6 +51,6 @@
   </div>
 </div>
 
-<div class="pt-8">
-  <%= link_to "Back to portfolios", portfolios_path, class: "btn" %>
-</div>
+<%# <div class="pt-8"> %>
+<%#   <%= link_to "Back to portfolios", portfolios_path, class: "btn" %>
+<%# </div> %>
