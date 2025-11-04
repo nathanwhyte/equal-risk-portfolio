@@ -1,0 +1,93 @@
+<span class="text-lg font-semibold text-base-content/75">Portfolio Allocations</span>
+
+<div class="flex flex-wrap gap-4 pt-2">
+  <% if portfolio.allocations.present? %>
+    <% portfolio.allocations.each do |name, allocation_data| %>
+      <%# Handle both old format (number) and new format (hash) %>
+      <% if allocation_data.is_a?(Hash)
+        weight = allocation_data["weight"] || allocation_data[:weight] || 0
+        enabled =
+          allocation_data["enabled"] != false && allocation_data[:enabled] != false
+      else
+        weight = allocation_data.to_f
+        enabled = true
+      end
+      disabled_class = enabled ? "" : "opacity-50"
+      toggle_button_class = enabled ? "btn btn-xs btn-ghost" : "btn-success btn-soft" %>
+      <div
+        class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
+      >
+        <div class="flex justify-between items-center w-full">
+          <div class="block shrink truncate">
+            <p class="text-lg font-bold"><%= name %></p>
+          </div>
+
+          <div class="pr-2 pl-3 font-bold text-center text-primary">
+            <%= weight %>%
+          </div>
+        </div>
+        <div class="flex gap-2 items-center">
+          <%= button_to enabled ? "Disable" : "Enable",
+          portfolio_path(portfolio),
+          method: :patch,
+          params: {
+            toggle_allocation: name,
+            update_allocations: "true",
+          },
+          class: toggle_button_class %>
+          <%= button_to "Remove",
+          portfolio_path(portfolio),
+          method: :patch,
+          params: {
+            remove_allocation: name,
+            update_allocations: "true",
+          },
+          class: "btn btn-error btn-soft btn-xs" %>
+        </div>
+      </div>
+    <% end %>
+  <% end %>
+</div>
+
+<%= form_with(model: portfolio, url: portfolio_path(portfolio), method: :patch) do |form| %>
+  <% if portfolio.errors.any? %>
+    <div class="text-red-600">
+      <h2><%= pluralize(portfolio.errors.count, "error") %>
+        prohibited this portfolio from being saved:</h2>
+
+      <ul>
+        <% portfolio.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="pt-8 pb-2 font-semibold text-base-content/75">Add an Allocation</div>
+  <p class="flex flex-col gap-4 pb-1 text-xs text-base-content/50">
+    Each allocation will simulate reserving a percentage of the portfolio's
+    total value to assets separate from the equal risk stocks.
+  </p>
+  <p class="flex flex-col gap-4 pb-4 text-xs text-base-content/50">
+    For example, given an allocation "Bonds" set at 20%, it will reduce the
+    weight of each equal risk stock by 20%.
+  </p>
+  <div class="flex gap-4 items-center">
+    <%= form.text_field :allocation_name,
+                    placeholder: "Allocation name, e.g. \"Bonds\"",
+                    class: "input",
+                    name: "allocation_name" %>
+    <%= form.number_field :allocation_weight,
+                      placeholder: "Weight %",
+                      class: "input",
+                      name: "allocation_weight",
+                      step: 0.01,
+                      min: 0,
+                      max: 100 %>
+    <%= hidden_field_tag :update_allocations, "true" %>
+
+    <div>
+      <%= form.submit "Add", class: "btn btn-soft btn-success" %>
+    </div>
+  </div>
+<% end %>

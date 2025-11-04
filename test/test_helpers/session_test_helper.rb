@@ -50,12 +50,27 @@ module SessionTestHelper
       session = user.sessions.create!
       Current.session = session
 
-      # Set the session cookie in the browser
-      page.driver.browser.manage.add_cookie(
+      # Visit a page first to establish the domain, then set the cookie
+      visit root_path unless page.current_url.present?
+
+      # Extract domain from current URL
+      uri = URI.parse(page.current_url)
+      cookie_domain = uri.host
+
+      # For localhost/127.0.0.1, Selenium may need the domain without port
+      # Try without domain first, or use the host as-is
+      cookie_options = {
         name: "session_id",
-        value: Rails.application.message_verifier("signed cookie jar").generate(session.id),
-        domain: "localhost"
-      )
+        value: Rails.application.message_verifier("signed cookie jar").generate(session.id)
+      }
+
+      # Only set domain if it's not localhost/127.0.0.1 (Selenium handles these specially)
+      unless cookie_domain == "localhost" || cookie_domain == "127.0.0.1"
+        cookie_options[:domain] = cookie_domain
+      end
+
+      # Set the session cookie in the browser
+      page.driver.browser.manage.add_cookie(cookie_options)
     else
       # Fallback for other test types
       Current.session = user.sessions.create!
