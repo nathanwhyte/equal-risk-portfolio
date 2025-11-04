@@ -69,6 +69,7 @@ class PortfoliosTest < ApplicationSystemTestCase
     fill_in "email_address", with: @user.email_address
     fill_in "password", with: "password"
     click_button "Sign in"
-    assert_current_path root_path
+    # Wait for redirect after login - use has_current_path? to wait for the path change
+    assert has_current_path?(root_path, wait: 5), "Expected to be redirected to root path after login"
   end
 end
