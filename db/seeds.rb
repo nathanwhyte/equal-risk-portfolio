@@ -18,9 +18,9 @@ if Rails.env.development?
       { symbol: "GOOGL", name: "Alphabet Inc." }
     ]
     portfolio.weights = {
-      "AAPL" => 0.333,
-      "MSFT" => 0.333,
-      "GOOGL" => 0.334
+      "AAPL" => 33.3,
+      "MSFT" => 33.3,
+      "GOOGL" => 33.4
     }
   end
 
@@ -32,10 +32,13 @@ if Rails.env.development?
       { symbol: "XOM", name: "Exxon Mobil Corporation" }
     ]
     portfolio.weights = {
-      "JPM" => 0.25,
-      "JNJ" => 0.25,
-      "PG" => 0.25,
-      "XOM" => 0.25
+      "JPM" => 25.0,
+      "JNJ" => 25.0,
+      "PG" => 25.0,
+      "XOM" => 25.0
+    }
+    portfolio.allocations = {
+      "Bonds" => 20.0
     }
   end
 
@@ -46,9 +49,9 @@ if Rails.env.development?
       { symbol: "NVDA", name: "NVIDIA Corporation" }
     ]
     portfolio.weights = {
-      "AMZN" => 0.333,
-      "TSLA" => 0.333,
-      "NVDA" => 0.334
+      "AMZN" => 33.3,
+      "TSLA" => 33.3,
+      "NVDA" => 33.4
     }
   end
 end

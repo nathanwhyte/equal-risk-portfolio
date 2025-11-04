@@ -8,7 +8,20 @@ class PortfoliosController < ApplicationController
   def show
     @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
 
-    Rails.logger.info "\n\nPortfolio #{@portfolio.name} with tickers #{@portfolio.tickers.map { |ticker| ticker["symbol"] }} and weights #{@portfolio.weights}\n\n"
+    if !@portfolio.allocations.nil?
+      allocation_sum = 0
+      for allocation in @portfolio.allocations.values
+        allocation_sum  += (allocation.to_f / 100.0)
+      end
+
+      allocation_adjustment = 1.0 - allocation_sum
+
+      @portfolio.weights.each do |ticker, weight|
+        @portfolio.weights[ticker] = weight * allocation_adjustment
+      end
+    end
+
+    Rails.logger.info "\nPortfolio #{@portfolio.name} with tickers #{@portfolio.tickers.map { |ticker| ticker["symbol"] }} and weights #{@portfolio.weights}\n"
   end
 
   def new
@@ -69,6 +82,14 @@ class PortfoliosController < ApplicationController
   end
 
   def update
+    # Handle allocations-only updates from the show page
+    # Check both top-level and nested params (form_with nests, button_to doesn't)
+    if params[:update_allocations] == "true" || params.dig(:portfolio, :update_allocations) == "true"
+      handle_allocations_update
+      return
+    end
+
+    # Handle regular portfolio updates from the edit page
     tickers = cached_tickers(@portfolio.id)
     @portfolio.tickers = tickers
     @portfolio.name = portfolio_params[:name]
@@ -107,7 +128,46 @@ class PortfoliosController < ApplicationController
   end
 
   def portfolio_params
-    params.expect(portfolio: [ :name, :tickers ])
+    params.expect(portfolio: [ :name, :tickers, :allocations ])
+  end
+
+  def handle_allocations_update
+    # Initialize allocations hash if nil
+    current_allocations = @portfolio.allocations || {}
+    new_allocations = current_allocations.dup
+
+    # Handle removal
+    if params[:remove_allocation].present?
+      allocation_name = params[:remove_allocation]
+      new_allocations = new_allocations.except(allocation_name)
+    end
+
+    # Handle addition
+    if params[:allocation_name].present? && params[:allocation_weight].present?
+      allocation_name = params[:allocation_name].strip
+      allocation_weight = params[:allocation_weight].to_f
+
+      if allocation_name.blank?
+        @portfolio.errors.add(:allocations, "Allocation name cannot be blank")
+      elsif allocation_weight <= 0 || allocation_weight > 100
+        @portfolio.errors.add(:allocations, "Allocation weight must be between 0 and 100")
+      else
+        new_allocations[allocation_name] = allocation_weight
+      end
+    end
+
+    # Assign the new allocations hash to trigger change detection
+    @portfolio.allocations = new_allocations
+
+    Rails.logger.info "Saving allocations: #{@portfolio.allocations.inspect}"
+
+    if @portfolio.errors.empty? && @portfolio.save
+      redirect_to @portfolio, notice: "Allocations were successfully updated."
+    else
+      Rails.logger.error "Failed to save allocations: #{@portfolio.errors.full_messages.inspect}"
+      @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+      render :show, status: :unprocessable_entity
+    end
   end
 
   def call_math_engine(tickers)
