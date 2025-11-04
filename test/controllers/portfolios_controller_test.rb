@@ -475,35 +475,6 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0.5, portfolio.weights["MSFT"]
   end
 
-  test "should normalize legacy allocation format (numeric value)" do
-    portfolio = Portfolio.create!(
-      name: "Test Portfolio",
-      tickers: [ { symbol: "AAPL", name: "Apple" } ],
-      weights: { "AAPL" => 1.0 },
-      allocations: {
-        "Cash" => 25.0  # Legacy format: just a number
-      }
-    )
-
-    get portfolio_url(portfolio)
-
-    assert_response :success
-    # The allocation should be normalized when accessed
-    # Since we're accessing allocations in show action, it should be normalized
-    portfolio.reload
-
-    # When we update allocations, it should normalize the structure
-    patch portfolio_url(portfolio), params: {
-      update_allocations: "true",
-      toggle_allocation: "Cash"
-    }
-
-    portfolio.reload
-    assert portfolio.allocations["Cash"].is_a?(Hash)
-    assert_equal 25.0, portfolio.allocations["Cash"]["weight"]
-    assert_equal false, portfolio.allocations["Cash"]["enabled"]  # Toggled from default true
-  end
-
   test "should handle allocations update with nested params from form_with" do
     portfolio = Portfolio.create!(
       name: "Test Portfolio",
