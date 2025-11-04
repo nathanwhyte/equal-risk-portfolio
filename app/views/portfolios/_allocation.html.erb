@@ -3,7 +3,6 @@
 <div class="flex flex-wrap gap-4 pt-2">
   <% if portfolio.allocations.present? %>
     <% portfolio.allocations.each do |name, allocation_data| %>
-      <%# Handle both old format (number) and new format (hash) %>
       <% if allocation_data.is_a?(Hash)
         weight = allocation_data["weight"] || allocation_data[:weight] || 0
         enabled =
@@ -15,7 +14,10 @@
       disabled_class = enabled ? "" : "opacity-50"
       toggle_button_class = enabled ? "btn btn-xs btn-ghost" : "btn-success btn-soft" %>
       <div
-        class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
+        class="
+          flex gap-6 items-center p-2 max-w-xs border shadow-md border-base-300 h-fit
+          min-w-3xs w-fit <%= disabled_class %>
+        "
       >
         <div class="flex justify-between items-center w-full">
           <div class="block shrink truncate">
@@ -46,6 +48,8 @@
         </div>
       </div>
     <% end %>
+  <% else %>
+    <p class="text-sm text-base-content/25 italic">No allocations added yet.</p>
   <% end %>
 </div>
 
