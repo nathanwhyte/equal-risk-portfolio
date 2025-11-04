@@ -1,15 +1,18 @@
-<p style="color: green"><%= notice %></p>
-
-<div class="pt-4 text-sm text-base-content/75">
-  &larr;
-  <%= link_to "Back to Portfolios", portfolios_path, class: "link link-hover" %>
+<div
+  class="flex justify-between items-center pt-4 text-sm text-base-content/75"
+>
+  <div>
+    &larr;
+    <%= link_to "Back to Portfolios", portfolios_path, class: "link link-hover" %>
+  </div>
+  <p style="color: green"><%= notice %></p>
 </div>
 
 <div class="flex flex-col gap-8 pt-4">
   <div class="flex gap-2 justify-between items-center">
     <div>
       <span class="text-lg font-semibold text-base-content/75">Portfolio Name</span>
-      <span class="block text-3xl font-bold">
+      <span class="block text-3xl font-bold text-accent">
         <%= @portfolio.name %>
       </span>
     </div>
@@ -34,13 +37,14 @@
   </div>
 
   <div>
-    <span class="text-lg font-semibold text-base-content/75">Tickers and Weights
-      <% if @portfolio.allocations.present? %>
-        <span class="ml-2 badge badge-sm badge-soft badge-warning">
+    <div class="text-lg font-semibold text-base-content/75">
+      Tickers and Weights
+      <% if @portfolio.allocations and @portfolio.allocations.values.any? { |a| a["enabled"] } %>
+        <span class="ml-2 font-normal badge badge-warning badge-xs">
           Adjusted for Allocations
         </span>
       <% end %>
-    </span>
+    </div>
     <div class="flex flex-wrap gap-4 pt-2">
       <% for ticker in @tickers %>
         <div
