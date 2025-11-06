@@ -9,7 +9,7 @@
     "@hotwired/stimulus": "^3.2.2",
     "@hotwired/turbo-rails": "^8.0.18",
     "@tailwindcss/cli": "^4.1.15",
-    "daisyui": "^5.3.7",
+    "daisyui": "^5.4.5",
     "tailwindcss": "^4.1.15"
   }
 }
