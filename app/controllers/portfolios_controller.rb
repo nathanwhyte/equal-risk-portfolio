@@ -6,25 +6,42 @@ class PortfoliosController < ApplicationController
   end
 
   def show
-    @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
+    # Check if viewing a specific version via URL segment
+    if params[:version_number].present?
+      @version = @portfolio.portfolio_versions.by_version(params[:version_number]).first
 
-    # Create adjusted weights for display (don't mutate @portfolio.weights)
-    @adjusted_weights = @portfolio.weights.dup
+      unless @version
+        redirect_to @portfolio, alert: "Version not found"
+        return
+      end
 
-    if !@portfolio.allocations.nil?
-      # Only count enabled allocations (normalize in memory for calculation)
+      # Use version data for display
+      @tickers = @version.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+      @weights = @version.weights
+      @viewing_version = @version
+    else
+      # Use current portfolio data (latest version)
+      @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+      @weights = @portfolio.weights
+      @viewing_version = nil
+    end
+
+    # Create adjusted weights for display (don't mutate original weights)
+    @adjusted_weights = @weights.dup
+
+    # Note: Allocations are not versioned, so use current portfolio allocations
+    @allocations = @portfolio.allocations
+
+    if !@allocations.nil?
+      # Apply allocation adjustments (same logic as existing show action)
       allocation_sum = 0
-      @portfolio.allocations.each do |_name, allocation_data|
+      @allocations.each do |_name, allocation_data|
         allocation = normalize_allocation_value(allocation_data)
         if allocation[:enabled]
           allocation_sum += (allocation[:weight].to_f / 100.0)
         end
       end
 
-      # Adjustment formula:
-      # If allocations sum to X%, then stock weights are adjusted by (1 - X)
-      # Example: 20% bonds allocation ? stock weights multiplied by 0.8
-      # Guard against negative adjustments if allocations exceed 100%
       allocation_adjustment = [ 1.0 - allocation_sum, 0.0 ].max
 
       @adjusted_weights.each do |ticker, weight|
@@ -32,7 +49,7 @@ class PortfoliosController < ApplicationController
       end
     end
 
-    Rails.logger.info "\nPortfolio #{@portfolio.name} with tickers #{@portfolio.tickers.map { |ticker| ticker["symbol"] }} and weights #{@portfolio.weights}\n"
+    Rails.logger.info "\nPortfolio #{@portfolio.name} with tickers #{@tickers.map(&:symbol)} and weights #{@weights}\n"
   end
 
   def new
@@ -74,6 +91,7 @@ class PortfoliosController < ApplicationController
       redirect_to tickers_search_path(query: params[:query])
     else
       if @portfolio.save
+        @portfolio.create_initial_version
         redirect_to @portfolio, notice: "Portfolio was successfully created."
       else
         @tickers = cached_tickers
@@ -102,11 +120,11 @@ class PortfoliosController < ApplicationController
 
     # Handle regular portfolio updates from the edit page
     tickers = cached_tickers(@portfolio.id)
-    @portfolio.tickers = tickers
     @portfolio.name = portfolio_params[:name]
 
+    # Calculate new weights before transaction
     begin
-      @portfolio.weights = call_math_engine(tickers.map { |ticker| ticker.symbol })
+      new_weights = call_math_engine(tickers.map { |ticker| ticker.symbol })
     rescue => e
       Rails.logger.error "API call failed: #{e.message}"
       @portfolio.errors.add(:base, "There was a problem updating the portfolio. Please try again.")
@@ -116,8 +134,41 @@ class PortfoliosController < ApplicationController
       return
     end
 
-    if @portfolio.save
-      redirect_to @portfolio, notice: "Portfolio was successfully updated."
+    # Wrap version creation and portfolio update in a transaction for atomicity
+    save_succeeded = false
+    success_message = "Portfolio was successfully updated."
+    Portfolio.transaction do
+      # Check if user wants to create a new version BEFORE updating portfolio
+      if params[:commit] == "Create New Version"
+        # Extract version metadata from nested params
+        version_params = params.dig(:portfolio, :portfolio_versions_attributes, "0") || {}
+        version_title = version_params[:version_name]&.strip.presence
+        version_notes = version_params[:notes]&.strip.presence
+
+        # Create version with current state BEFORE updating portfolio
+        # This captures the state that will be replaced
+        @portfolio.create_version_with_current_state(
+          title: version_title,
+          notes: version_notes
+        )
+
+        success_message = "New Version created, Portfolio successfully updated."
+      end
+
+      # Now update portfolio with new values
+      @portfolio.tickers = tickers
+      @portfolio.weights = new_weights
+
+      if @portfolio.save
+        save_succeeded = true
+      else
+        raise ActiveRecord::Rollback
+      end
+    end
+
+    # Check if save was successful
+    if save_succeeded
+      redirect_to @portfolio, notice: success_message
     else
       @tickers = tickers
       @count = tickers.length

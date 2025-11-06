@@ -3,10 +3,12 @@ class CreatePortfolioVersions < ActiveRecord::Migration[8.1]
     create_table :portfolio_versions do |t|
       t.references :portfolio, null: false, foreign_key: true, type: :uuid
 
-      # Snapshot of ticker->weight->allocations mapping at this version
+      # Snapshot of ticker -> weight -> allocations mapping at this version
       t.jsonb :tickers, null: false
       t.jsonb :weights, null: false
       t.jsonb :allocations # Can be null (portfolios may not have allocations)
+
+      t.string :title
 
       # Optional metadata
       t.string :notes # Optional notes about this version

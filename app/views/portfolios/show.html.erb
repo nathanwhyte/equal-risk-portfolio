@@ -3,7 +3,7 @@
 >
   <div>
     &larr;
-    <%= link_to "Back to Portfolios", portfolios_path, class: "link link-hover" %>
+    <%= link_to "Back to Portfolios List", portfolios_path, class: "link link-hover" %>
   </div>
   <p style="color: green"><%= notice %></p>
 </div>
@@ -17,16 +17,24 @@
       </span>
     </div>
 
-    <%# TODO: wrap in a form or just update content on change %>
     <div class="flex gap-2 items-center">
-      <select class="mr-1 select select-ghost select-primary">
-        <% for option in ["Daily", "Weekly", "Monthly"] %>
-          <option <%= "selected" if option == @refresh_interval %>>
-            <%# TODO: add title, datetime, etc. to option content %>
-            <%= option %>
+      <label for="version_select" class="font-semibold text-base-content/75">Version:</label>
+      <select
+        class="mr-1 max-w-2xs select select-ghost select-primary w-fit"
+        onchange="if(this.value) { window.location.href = this.value; } else { window.location.href = '<%= portfolio_path(@portfolio) %>'; }"
+      >
+        <% @portfolio.portfolio_versions.recent.each do |version| %>
+          <option
+            value="<%= version_portfolio_path(@portfolio, version.version_number) %>"
+            <%= "selected" if @viewing_version&.version_number == version.version_number %>
+          >
+            <% if version.title.present? %>
+              <%= version.title %>
+            <% else %>
+              v<%= version.version_number %>
+            <% end %>
           </option>
         <% end %>
-        <option selected>Latest Version</option>
       </select>
 
       <div>
@@ -73,5 +81,45 @@
 
   <div class="pt-4">
     <%= render partial: "allocation", locals: { portfolio: @portfolio } %>
+  </div>
+
+  <div class="pt-4">
+    <div class="mb-4 text-lg font-semibold text-base-content/75">
+      Version History
+    </div>
+
+    <% if @portfolio.portfolio_versions.any? %>
+      <div class="space-y-2">
+        <% @portfolio.portfolio_versions.chronological.each do |version| %>
+          <div class="flex gap-4 items-center p-3 rounded border border-base-300">
+            <div class="flex-1">
+              <div class="font-medium">
+                Version
+                <%= version.version_number %>
+                <% if version.title.present? %>
+                  -
+                  <span class="text-base-content/75"><%= version.title %></span>
+                <% end %>
+              </div>
+              <div class="text-sm text-base-content/50">
+                <%= version.created_at.strftime("%B %d, %Y at %I:%M %p") %>
+                <% if version.notes.present? %>
+                  <span class="ml-2">•
+                    <%= version.notes %></span>
+                <% end %>
+              </div>
+              <div class="flex gap-2 mt-1">
+                <% version.ticker_symbols.each do |symbol| %>
+                  <span class="badge badge-sm"><%= symbol %></span>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-base-content/50">No version history yet. Create a new version when editing to track
+        changes.</p>
+    <% end %>
   </div>
 </div>

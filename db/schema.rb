@@ -28,6 +28,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_154309) do
     t.string "notes"
     t.uuid "portfolio_id", null: false
     t.jsonb "tickers", null: false
+    t.string "title"
     t.integer "version_number", null: false
     t.jsonb "weights", null: false
     t.index ["allocations"], name: "index_portfolio_versions_on_allocations_gin", using: :gin
