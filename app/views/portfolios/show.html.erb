@@ -9,7 +9,7 @@
 </div>
 
 <div class="flex flex-col gap-8 pt-4">
-  <div class="flex gap-2 justify-between items-center">
+  <div class="flex gap-2 justify-between items-start">
     <div>
       <span class="text-lg font-semibold text-base-content/75">Portfolio Name</span>
       <span class="block text-3xl font-bold text-accent">
@@ -17,7 +17,18 @@
       </span>
     </div>
 
-    <div class="flex gap-2">
+    <%# TODO: wrap in a form or just update content on change %>
+    <div class="flex gap-2 items-center">
+      <select class="mr-1 select select-ghost select-primary">
+        <% for option in ["Daily", "Weekly", "Monthly"] %>
+          <option <%= "selected" if option == @refresh_interval %>>
+            <%# TODO: add title, datetime, etc. to option content %>
+            <%= option %>
+          </option>
+        <% end %>
+        <option selected>Latest Version</option>
+      </select>
+
       <div>
         <%= link_to "Edit",
         edit_portfolio_path(@portfolio),
