@@ -18,9 +18,9 @@
     </div>
 
     <div class="flex gap-2 items-center">
-      <label for="version_select" class="font-semibold text-base-content/75">Version:</label>
+      <label for="version_select" class="text-xs font-semibold text-base-content/75">Version:</label>
       <select
-        class="mr-1 max-w-2xs select select-ghost select-primary w-fit"
+        class="mr-1 border cursor-pointer  bg-base-200 border-base-300 max-w-2xs select select-ghost select-primary select-sm w-fit"
         onchange="if(this.value) { window.location.href = this.value; } else { window.location.href = '<%= portfolio_path(@portfolio) %>'; }"
       >
         <% @portfolio.portfolio_versions.recent.each do |version| %>
@@ -59,7 +59,7 @@
     <div class="text-lg font-semibold text-base-content/75">
       Tickers and Weights
       <% if @portfolio.allocations and @portfolio.allocations.values.any? { |a| a["enabled"] } %>
-        <span class="ml-2 font-normal badge badge-warning badge-xs">
+        <span class="ml-2 font-medium badge badge-sm badge-warning">
           Adjusted for Allocations
         </span>
       <% end %>
@@ -88,6 +88,8 @@
       Version History
     </div>
 
+    <%# TODO: add "current"/"latest" and "base" badges %>
+    <%# TODO: add "load version" button %>
     <% if @portfolio.portfolio_versions.any? %>
       <div class="space-y-2">
         <% @portfolio.portfolio_versions.chronological.each do |version| %>

@@ -5,11 +5,13 @@
 
   <%# TODO: add some subtext about version history usage %>
 
-  <%= form.fields_for :portfolio_versions do |version_form| %>
+  <%= form_with model: PortfolioVersion.new, url: portfolio_path(portfolio), method: :patch, local: true do |version_form| %>
+    <%= version_form.hidden_field :portfolio_id, value: portfolio.id %>
+
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
-        <%= version_form.label :version_name, "Version Name", class: "font-medium" %>
-        <%= version_form.text_field :version_name,
+        <%= version_form.label :title, "Version Title", class: "font-medium" %>
+        <%= version_form.text_field :title,
                                 placeholder: "e.g. \"Add Cloudflare\"",
                                 class: "input" %>
       </div>
@@ -22,8 +24,9 @@
                                class: "w-1/3 textarea" %>
       </div>
     </div>
-  <% end %>
 
-  <%# TODO: make sure this submit is handled differently than "update current version" %>
-  <%= form.submit "Create New Version", class: "btn btn-soft btn-success w-fit" %>
+    <%= version_form.hidden_field :create_new_version, value: "true" %>
+    <%= version_form.submit "Create New Version",
+                        class: "btn btn-soft btn-success w-fit" %>
+  <% end %>
 </div>
