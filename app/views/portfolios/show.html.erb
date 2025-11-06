@@ -17,6 +17,7 @@
       </span>
     </div>
 
+    <%# TODO: convert these tags to use Rails built-ins %>
     <div class="flex gap-2 items-center">
       <label for="version_select" class="text-xs font-semibold text-base-content/75">Version:</label>
       <select
@@ -93,29 +94,34 @@
     <% if @portfolio.portfolio_versions.any? %>
       <div class="space-y-2">
         <% @portfolio.portfolio_versions.chronological.each do |version| %>
-          <div class="flex gap-4 items-center p-3 rounded border border-base-300">
-            <div class="flex-1">
-              <div class="font-medium">
-                Version
-                <%= version.version_number %>
-                <% if version.title.present? %>
-                  -
-                  <span class="text-base-content/75"><%= version.title %></span>
-                <% end %>
-              </div>
-              <div class="text-sm text-base-content/50">
-                <%= version.created_at.strftime("%B %d, %Y at %I:%M %p") %>
-                <% if version.notes.present? %>
-                  <span class="ml-2">•
-                    <%= version.notes %></span>
-                <% end %>
-              </div>
-              <div class="flex gap-2 mt-1">
-                <% version.ticker_symbols.each do |symbol| %>
-                  <span class="badge badge-sm"><%= symbol %></span>
-                <% end %>
-              </div>
+          <div
+            class="flex flex-col gap-1 items-start p-3 rounded border shadow-sm  border-base-300"
+          >
+            <div class="text-lg font-semibold text-base-content/75">
+              Version
+              <%= version.version_number %>
+              <% if version.title.present? %>
+                -
+                <span class="text-primary"><%= version.title %></span>
+              <% end %>
             </div>
+
+            <% if version.notes.present? %>
+              <div class="text-sm text-base-content/50">
+                <%= version.notes %>
+              </div>
+            <% end %>
+
+            <span class="text-xs text-base-content/50">
+              Created
+              <span class="font-semibold text-base-content/75">
+                <%= version.created_at.strftime("%B %d, %Y") %>
+              </span>
+              at
+              <span class="font-semibold text-base-content/75">
+                <%= version.created_at.strftime("%I:%M %p") %>
+              </span>
+            </span>
           </div>
         <% end %>
       </div>
