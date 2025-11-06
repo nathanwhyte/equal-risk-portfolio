@@ -22,6 +22,12 @@ if Rails.env.development?
       "MSFT" => 33.3,
       "GOOGL" => 33.4
     }
+    portfolio.allocations = {
+      "Bonds" => {
+        "weight" => 5.0,
+        "enabled" => false
+      }
+    }
   end
 
   Portfolio.find_or_create_by!(name: "Diversified Blue Chips") do |portfolio|
@@ -38,7 +44,10 @@ if Rails.env.development?
       "XOM" => 25.0
     }
     portfolio.allocations = {
-      "Bonds" => 20.0
+      "Bonds" => {
+        "weight" => 20.0,
+        "enabled" => true
+      }
     }
   end
 
