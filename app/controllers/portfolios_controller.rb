@@ -1,4 +1,9 @@
 class PortfoliosController < ApplicationController
+  include PortfolioVersions
+  include PortfolioAllocations
+  include PortfolioHelper
+
+  helper PortfolioDisplayHelper
   before_action :set_portfolio, only: %i[ show edit update destroy ]
 
   def index
@@ -6,57 +11,27 @@ class PortfoliosController < ApplicationController
   end
 
   def show
-    # Check if viewing a specific version via URL segment
     if params[:version_number].present?
-      @version = @portfolio.portfolio_versions.by_version(params[:version_number]).first
+      @viewing_version = load_portfolio_version(@portfolio, params[:version_number])
 
-      unless @version
+      unless @viewing_version
         redirect_to @portfolio, alert: "Version not found"
         return
       end
 
-      # Use version data for display
-      @tickers = @version.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
-      @weights = @version.weights
-      @viewing_version = @version
+      raw_tickers, raw_weights = version_tickers_and_weights(@viewing_version)
     else
-      # Use latest version data (or fallback to stored portfolio data)
-      latest = @portfolio.latest_version
-      if latest
-        @tickers = latest.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
-        @weights = latest.weights
-      else
-        # Fallback to stored portfolio data (for backward compatibility)
-        @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
-        @weights = @portfolio.weights
-      end
+      raw_tickers, raw_weights, _latest = load_latest_version_data(@portfolio)
       @viewing_version = nil
     end
 
-    # Create adjusted weights for display (don't mutate original weights)
-    @adjusted_weights = @weights.dup
-
-    # Note: Allocations are not versioned, so use current portfolio allocations
+    @tickers = tickers_from_hash(raw_tickers)
+    @weights = raw_weights || {}
     @allocations = @portfolio.allocations
-
-    # IDEA: disable allocations by default on page load
-
-    if !@allocations.nil?
-      # Apply allocation adjustments (same logic as existing show action)
-      allocation_sum = 0
-      @allocations.each do |_name, allocation_data|
-        allocation = normalize_allocation_value(allocation_data)
-        if allocation[:enabled]
-          allocation_sum += (allocation[:weight].to_f / 100.0)
-        end
-      end
-
-      allocation_adjustment = [ 1.0 - allocation_sum, 0.0 ].max
-
-      @adjusted_weights.each do |ticker, weight|
-        @adjusted_weights[ticker] = weight * allocation_adjustment
-      end
-    end
+    @adjusted_weights = WeightCalculator.new(
+      weights: @weights,
+      allocations: @allocations
+    ).adjusted_weights
 
     Rails.logger.info "\nPortfolio #{@portfolio.name} with tickers #{@tickers.map(&:symbol)} and weights #{@weights}\n"
   end
@@ -72,10 +47,8 @@ class PortfoliosController < ApplicationController
 
     @portfolio.name = params[:portfolio][:name]
     tickers = cached_tickers
-
-    # Convert Ticker objects to hash format for storage
     ticker_symbols = tickers.map(&:symbol)
-    tickers_hash = tickers.map { |ticker| { "symbol" => ticker.symbol, "name" => ticker.name } }
+    tickers_hash = tickers_to_hash(tickers)
 
     if ticker_symbols.length <= 0
       @portfolio.errors.add(:tickers, "must include at least one ticker")
@@ -86,8 +59,10 @@ class PortfoliosController < ApplicationController
     end
 
     begin
-      @portfolio.weights = call_math_engine(ticker_symbols)
-    rescue => e
+      @portfolio.weights = math_engine_client.calculate_weights(
+        tickers: ticker_symbols
+      )
+    rescue MathEngineClient::Error => e
       Rails.logger.error "API call failed: #{e.message}"
       @portfolio.errors.add(:base, "There was a problem creating the portfolio. Please try again.")
       @tickers = cached_tickers
@@ -120,11 +95,10 @@ class PortfoliosController < ApplicationController
   def edit
     # Load tickers from latest version (or fallback to stored portfolio data)
     latest = @portfolio.latest_version
-    if latest
-      tickers = latest.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+    tickers = if latest
+      tickers_from_hash(latest.tickers)
     else
-      # Fallback to stored portfolio data (for backward compatibility)
-      tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+      tickers_from_hash(@portfolio.tickers)
     end
     write_cached_tickers(tickers, @portfolio.id)
     @count = tickers.length
@@ -132,10 +106,21 @@ class PortfoliosController < ApplicationController
   end
 
   def update
+    Rails.logger.info "\nParams received for update: #{params}\n"
+
     # Handle allocations-only updates from the show page
     # Check both top-level and nested params (form_with nests, button_to doesn't)
     if params[:update_allocations] == "true" || params.dig(:portfolio, :update_allocations) == "true"
       handle_allocations_update
+      return
+    end
+
+    Rails.logger.info "\nUpdating Portfolio #{params})\n"
+
+    if params[:cap_and_redistribute] == "true" || params.dig(:portfolio, :cap_and_redistribute) == "true"
+      handle_cap_and_redistribute(@portfolio.tickers,
+        params.dig(:portfolio, :cap_percentage).to_f,
+        params.dig(:portfolio, :top_n).to_i)
       return
     end
 
@@ -145,8 +130,10 @@ class PortfoliosController < ApplicationController
 
     # Calculate new weights before transaction
     begin
-      new_weights = call_math_engine(tickers.map { |ticker| ticker.symbol })
-    rescue => e
+      new_weights = math_engine_client.calculate_weights(
+        tickers: tickers.map(&:symbol)
+      )
+    rescue MathEngineClient::Error => e
       Rails.logger.error "API call failed: #{e.message}"
       @portfolio.errors.add(:base, "There was a problem updating the portfolio. Please try again.")
       @tickers = tickers
@@ -156,7 +143,7 @@ class PortfoliosController < ApplicationController
     end
 
     # Convert tickers to hash format for version storage
-    tickers_hash = tickers.map { |ticker| { "symbol" => ticker.symbol, "name" => ticker.name } }
+    tickers_hash = tickers_to_hash(tickers)
 
     # Wrap version creation/update and portfolio update in a transaction for atomicity
     save_succeeded = false
@@ -224,187 +211,69 @@ class PortfoliosController < ApplicationController
     params.expect(portfolio: [ :name, :tickers, :allocations ])
   end
 
-  def handle_allocations_update
-    # Initialize allocations hash if nil
-    current_allocations = @portfolio.allocations || {}
-    new_allocations = current_allocations.deep_dup
+  def handle_cap_and_redistribute(tickers, cap_percentage, top_n)
+    Rails.logger.info "\nApplying cap and redistribute: Cap #{cap_percentage}%, Top N #{top_n}, tickers: #{tickers}\n"
 
-    # Normalize existing allocations to new structure
-    normalize_allocations_hash(new_allocations)
+    version_cap = cap_percentage > 0 ? cap_percentage / 100.0 : nil
+    version_top_n = top_n > 0 ? top_n : nil
 
-    # Handle toggle enabled/disabled
-    if params[:toggle_allocation].present?
-      allocation_name = params[:toggle_allocation]
-      if new_allocations[allocation_name].present?
-        allocation = normalize_allocation_value(new_allocations[allocation_name])
-        new_allocations[allocation_name] = {
-          "weight" => allocation[:weight],
-          "enabled" => !allocation[:enabled]
-        }
-      end
+    tickers_list = Array(tickers).map { |ticker| ticker["symbol"] || ticker[:symbol] }
+    new_weights = math_engine_client.calculate_weights(
+      tickers: tickers_list,
+      cap: version_cap,
+      top_n: version_top_n
+    )
+    tickers_hash = Array(tickers).map do |ticker|
+      {
+        "symbol" => ticker["symbol"] || ticker[:symbol],
+        "name" => ticker["name"] || ticker[:name]
+      }
     end
 
-    # Handle removal
-    if params[:remove_allocation].present?
-      allocation_name = params[:remove_allocation]
-      new_allocations = new_allocations.except(allocation_name)
-    end
+    save_succeeded = false
+    Portfolio.transaction do
+      version_title = "Cap #{cap_percentage}% to Top #{top_n}"
+      version_notes = nil
 
-    # Handle addition
-    if params[:allocation_name].present? && params[:allocation_weight].present?
-      allocation_name = params[:allocation_name].strip
-      allocation_weight = params[:allocation_weight].to_f
+      # Create a new version with the new tickers and weights
+      @portfolio.create_new_version(
+        tickers: tickers_hash,
+        weights: new_weights,
+        title: version_title,
+        notes: version_notes,
+        cap: version_cap,
+        top_n: version_top_n
+      )
 
-      if allocation_name.blank?
-        @portfolio.errors.add(:allocations, "Allocation name cannot be blank")
-      elsif allocation_weight <= 0 || allocation_weight > 100
-        @portfolio.errors.add(:allocations, "Allocation weight must be between 0 and 100")
-      elsif new_allocations.any? { |name, _| name.downcase == allocation_name.downcase }
-        @portfolio.errors.add(:allocations, "An allocation with this name already exists")
+      # Update portfolio table with new values (for backward compatibility/cache)
+      @portfolio.tickers = tickers_hash
+      @portfolio.weights = new_weights
+
+      if @portfolio.save
+        save_succeeded = true
       else
-        new_allocations[allocation_name] = {
-          "weight" => allocation_weight,
-          "enabled" => true
-        }
+        raise ActiveRecord::Rollback
       end
     end
 
-    # Validate total allocations don't exceed 100%
-    unless @portfolio.errors.any?
-      total_allocation = new_allocations.sum do |_name, data|
-        allocation = normalize_allocation_value(data)
-        allocation[:enabled] ? (allocation[:weight].to_f / 100.0) : 0
-      end
-
-      if total_allocation > 1.0
-        @portfolio.errors.add(:allocations, "Total allocations cannot exceed 100%")
-      end
-    end
-
-    # Only assign new allocations if there are no errors
-    unless @portfolio.errors.any?
-      @portfolio.allocations = new_allocations
-    end
-
-    Rails.logger.info "Saving allocations: #{@portfolio.allocations.inspect}"
-
-    if @portfolio.errors.empty? && @portfolio.save
-      redirect_to @portfolio, notice: "Allocations were successfully updated."
+    if save_succeeded
+      redirect_to @portfolio, notice: "Cap and redistribute options were successfully applied."
     else
-      Rails.logger.error "Failed to save allocations: #{@portfolio.errors.full_messages.inspect}"
-      # Load tickers from latest version (or fallback to stored portfolio data)
-      latest = @portfolio.latest_version
-      if latest
-        @tickers = latest.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
-        @adjusted_weights = calculate_adjusted_weights_from_version(latest, @portfolio)
-      else
-        @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
-        @adjusted_weights = calculate_adjusted_weights(@portfolio)
-      end
+      Rails.logger.error "Failed to apply cap and redistribute options: #{@portfolio.errors.full_messages.inspect}"
+      raw_tickers, raw_weights, @viewing_version = load_latest_version_data(@portfolio)
+      @tickers = tickers_from_hash(raw_tickers)
+      @weights = raw_weights || {}
+      @allocations = @portfolio.allocations
+      @adjusted_weights = WeightCalculator.new(
+        weights: @weights,
+        allocations: @allocations
+      ).adjusted_weights
+
       render :show, status: :unprocessable_entity
     end
   end
 
-  # Calculate adjusted weights based on allocations
-  # Adjustment formula:
-  # If allocations sum to X%, then stock weights are adjusted by (1 - X)
-  # Example: 20% bonds allocation ? stock weights multiplied by 0.8
-  # Guard against negative adjustments if allocations exceed 100%
-  def calculate_adjusted_weights(portfolio)
-    adjusted_weights = portfolio.weights.dup
-
-    return adjusted_weights if portfolio.allocations.nil?
-
-    # Only count enabled allocations (normalize in memory for calculation)
-    allocation_sum = 0
-    portfolio.allocations.each do |_name, allocation_data|
-      allocation = normalize_allocation_value(allocation_data)
-      if allocation[:enabled]
-        allocation_sum += (allocation[:weight].to_f / 100.0)
-      end
-    end
-
-    allocation_adjustment = [ 1.0 - allocation_sum, 0.0 ].max
-
-    adjusted_weights.each do |ticker, weight|
-      adjusted_weights[ticker] = weight * allocation_adjustment
-    end
-
-    adjusted_weights
-  end
-
-  # Calculate adjusted weights from a version (for error handling)
-  def calculate_adjusted_weights_from_version(version, portfolio)
-    adjusted_weights = version.weights.dup
-
-    return adjusted_weights if portfolio.allocations.nil?
-
-    # Only count enabled allocations (normalize in memory for calculation)
-    allocation_sum = 0
-    portfolio.allocations.each do |_name, allocation_data|
-      allocation = normalize_allocation_value(allocation_data)
-      if allocation[:enabled]
-        allocation_sum += (allocation[:weight].to_f / 100.0)
-      end
-    end
-
-    allocation_adjustment = [ 1.0 - allocation_sum, 0.0 ].max
-
-    adjusted_weights.each do |ticker, weight|
-      adjusted_weights[ticker] = weight * allocation_adjustment
-    end
-
-    adjusted_weights
-  end
-
-  # Normalize allocation value to hash format (handles backward compatibility)
-  def normalize_allocation_value(value)
-    if value.is_a?(Hash)
-      {
-        weight: value["weight"] || value[:weight] || value.to_f,
-        enabled: value["enabled"] != false && value[:enabled] != false
-      }
-    else
-      {
-        weight: value.to_f,
-        enabled: true
-      }
-    end
-  end
-
-  # Normalize allocations hash (in-place)
-  def normalize_allocations_hash(allocations)
-    allocations.each do |name, value|
-      allocation = normalize_allocation_value(value)
-      allocations[name] = {
-        "weight" => allocation[:weight],
-        "enabled" => allocation[:enabled]
-      }
-    end
-  end
-
-  def call_math_engine(tickers)
-    body  = {
-      tickers: tickers
-    }.to_json
-
-    response = HTTParty.post(
-      "#{ENV["API_URL"]}/calculate",
-      body: body,
-      headers: {
-        "Content-Type" => "application/json"
-      }
-    )
-
-    Rails.logger.info "\n\nResponse from math engine: #{response.parsed_response}\n\n"
-
-    unmapped_weights = response.parsed_response["weights"]
-
-    weights  = {}
-    unmapped_weights.map do |pair|
-      weights[pair["ticker"]] = pair["weight"].to_f
-    end
-
-    weights
+  def math_engine_client
+    @math_engine_client ||= MathEngineClient.new
   end
 end

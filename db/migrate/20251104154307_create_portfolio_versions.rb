@@ -6,7 +6,6 @@ class CreatePortfolioVersions < ActiveRecord::Migration[8.1]
       # Snapshot of ticker -> weight -> allocations mapping at this version
       t.jsonb :tickers, null: false
       t.jsonb :weights, null: false
-      t.jsonb :allocations # Can be null (portfolios may not have allocations)
 
       t.string :title
 

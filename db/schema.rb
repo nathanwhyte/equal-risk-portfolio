@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_04_154309) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_07_034023) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -23,15 +23,15 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_04_154309) do
   end
 
   create_table "portfolio_versions", force: :cascade do |t|
-    t.jsonb "allocations"
+    t.float "cap_percentage"
     t.datetime "created_at", null: false
     t.string "notes"
     t.uuid "portfolio_id", null: false
     t.jsonb "tickers", null: false
     t.string "title"
+    t.integer "top_n"
     t.integer "version_number", null: false
     t.jsonb "weights", null: false
-    t.index ["allocations"], name: "index_portfolio_versions_on_allocations_gin", using: :gin
     t.index ["created_at"], name: "index_portfolio_versions_on_created_at"
     t.index ["portfolio_id", "created_at"], name: "index_portfolio_versions_on_portfolio_and_created_at"
     t.index ["portfolio_id", "version_number"], name: "index_portfolio_versions_on_portfolio_and_version", unique: true

@@ -21,21 +21,11 @@
     <div class="flex gap-2 items-center">
       <label for="version_select" class="text-xs font-semibold text-base-content/75">Version:</label>
       <select
+        id="version_select"
         class="mr-1 border cursor-pointer  bg-base-200 border-base-300 max-w-2xs select select-ghost select-primary select-sm w-fit"
         onchange="if(this.value) { window.location.href = this.value; } else { window.location.href = '<%= portfolio_path(@portfolio) %>'; }"
       >
-        <% @portfolio.portfolio_versions.recent.each do |version| %>
-          <option
-            value="<%= version_portfolio_path(@portfolio, version.version_number) %>"
-            <%= "selected" if @viewing_version&.version_number == version.version_number %>
-          >
-            <% if version.title.present? %>
-              <%= version.title %>
-            <% else %>
-              v<%= version.version_number %>
-            <% end %>
-          </option>
-        <% end %>
+        <%= options_for_select(version_select_options(@portfolio, @viewing_version)) %>
       </select>
 
       <div>
@@ -59,10 +49,9 @@
   <div>
     <div class="text-lg font-semibold text-base-content/75">
       Tickers and Weights
-      <% if @portfolio.allocations and @portfolio.allocations.values.any? { |a| a["enabled"] } %>
-        <span class="ml-2 font-medium badge badge-sm badge-warning">
-          Adjusted for Allocations
-        </span>
+      <% badge_class = allocation_badge_class(@portfolio) %>
+      <% if badge_class.present? %>
+        <span class="ml-2 font-medium <%= badge_class %>">Adjusted for Allocations</span>
       <% end %>
     </div>
     <div class="flex flex-wrap gap-4 pt-2">
@@ -80,17 +69,18 @@
     </div>
   </div>
 
-  <div class="pt-4">
-    <%= render partial: "allocation", locals: { portfolio: @portfolio } %>
-  </div>
+  <%= render partial: "cap_and_redistribute", locals: { portfolio: @portfolio } %>
 
-  <div class="pt-4">
+  <%= render partial: "allocations", locals: { portfolio: @portfolio } %>
+
+  <div>
     <div class="mb-4 text-lg font-semibold text-base-content/75">
       Version History
     </div>
 
     <%# TODO: add "current"/"latest" and "base" badges %>
-    <%# TODO: add "load version" button %>
+    <%# TODO: add "show version" button %>
+    <%# TODO: move to own partial %>
     <% if @portfolio.portfolio_versions.any? %>
       <div class="space-y-2">
         <% @portfolio.portfolio_versions.chronological.each do |version| %>
