@@ -9,9 +9,9 @@
   <%= f.submit "Search", class: "ml-2 btn btn-accent shrink-0" %>
 <% end %>
 
-<div id="results" class="w-full h-72">
+<div id="results" class="w-full h-48">
   <div class="flex justify-center items-center w-full h-full">
-    <p class="text-base font-semibold text-base-content/50">Use the search above to find stocks.</p>
+    <p class="text-sm font-semibold text-base-content/50">Use the search above to find stocks.</p>
   </div>
 </div>
 
@@ -40,12 +40,20 @@
     </div>
   <% end %>
 
+  <%# TODO: cap and redistribute options here %>
+
   <div class="pt-8 space-y-2">
-    <%= form.label :name, class: "block text-xl font-semibold" %>
+    <%= form.label :name, "Portfolio Name", class: "block text-xl font-semibold" %>
     <%= form.text_field :name, class: "input" %>
   </div>
 
-  <div class="pt-16">
-    <%= form.submit "Next", class: "btn btn-accent" %>
-  </div>
+  <% if request.path.split('/').last == "edit" %>
+    <div class="pt-4"></div>
+    <%= form.submit "Update Current Version", class: "btn btn-accent btn-soft" %>
+    <%= render partial: "version_form", locals: { portfolio: portfolio } %>
+  <% else %>
+    <div class="pt-8">
+      <%= form.submit "Create", class: "btn btn-accent" %>
+    </div>
+  <% end %>
 <% end %>

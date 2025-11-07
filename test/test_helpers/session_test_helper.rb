@@ -46,31 +46,17 @@ module SessionTestHelper
       # Note: Current is reset between requests, so we need to restore it
       Thread.current[:current_session] = @test_session
     elsif respond_to?(:page) && page.respond_to?(:driver)
-      # System test approach - set session cookie directly
-      session = user.sessions.create!
-      Current.session = session
+      # System test approach - sign in via the sessions controller
+      # This ensures the cookie is set correctly by Rails
+      visit new_session_path
 
-      # Visit a page first to establish the domain, then set the cookie
-      visit root_path unless page.current_url.present?
+      # Find fields by name or id instead of label
+      fill_in "email_address", with: user.email_address
+      fill_in "password", with: "password"
+      click_button "Sign in"
 
-      # Extract domain from current URL
-      uri = URI.parse(page.current_url)
-      cookie_domain = uri.host
-
-      # For localhost/127.0.0.1, Selenium may need the domain without port
-      # Try without domain first, or use the host as-is
-      cookie_options = {
-        name: "session_id",
-        value: Rails.application.message_verifier("signed cookie jar").generate(session.id)
-      }
-
-      # Only set domain if it's not localhost/127.0.0.1 (Selenium handles these specially)
-      unless cookie_domain == "localhost" || cookie_domain == "127.0.0.1"
-        cookie_options[:domain] = cookie_domain
-      end
-
-      # Set the session cookie in the browser
-      page.driver.browser.manage.add_cookie(cookie_options)
+      # Wait for redirect to complete and page to load
+      sleep(0.3) if defined?(Capybara)
     else
       # Fallback for other test types
       Current.session = user.sessions.create!

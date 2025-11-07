@@ -591,4 +591,380 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_equal 50.0, portfolio.allocations["Cash"]["weight"]
     assert_equal 50.0, portfolio.allocations["Bonds"]["weight"]
   end
+
+  # Version history tests
+
+  test "should show specific version when version_number param present" do
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    # Create a new version
+    portfolio.create_new_version(
+      tickers: [ { symbol: "MSFT", name: "Microsoft" } ],
+      weights: { "MSFT" => 1.0 },
+      title: "Added Microsoft"
+    )
+
+    get version_portfolio_url(portfolio, version_number: 2)
+    assert_response :success
+    # Verify version 2 data is displayed
+    assert_match "MSFT", response.body
+    assert_match "Added Microsoft", response.body
+  end
+
+  test "should show latest version when version_number param absent" do
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    portfolio.create_new_version(
+      tickers: [ { symbol: "MSFT", name: "Microsoft" } ],
+      weights: { "MSFT" => 1.0 }
+    )
+
+    get portfolio_url(portfolio)
+    assert_response :success
+    # Should show latest version (version 2)
+    assert_match "MSFT", response.body
+  end
+
+  test "should redirect to portfolio if version not found" do
+    portfolio = portfolios(:one)
+
+    get version_portfolio_url(portfolio, version_number: 999)
+    assert_redirected_to portfolio
+    assert_equal "Version not found", flash[:alert]
+  end
+
+  test "should create new version when create_new_version param is true" do
+    api_url = ENV.fetch("API_URL", "http://localhost:8000")
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    stub_request(:post, "#{api_url}/calculate")
+      .with(
+        body: hash_including("tickers"),
+        headers: { "Content-Type" => "application/json" }
+      )
+      .to_return(
+        status: 200,
+        body: {
+          weights: [
+            { ticker: "MSFT", weight: 1.0 }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Set up cache with tickers
+    get edit_portfolio_url(portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio.id}"
+    Rails.cache.write(cache_key, [
+      Ticker.new(symbol: "MSFT", name: "Microsoft")
+    ])
+
+    assert_difference "PortfolioVersion.count", 1 do
+      patch portfolio_url(portfolio), params: {
+        create_new_version: "true",
+        portfolio: {
+          name: portfolio.name,
+          tickers: [ { symbol: "MSFT", name: "Microsoft" } ]
+        },
+        portfolio_version: {
+          title: "Add Microsoft",
+          notes: "Switched to MSFT"
+        }
+      }
+    end
+
+    assert_redirected_to portfolio_url(portfolio)
+    assert_equal "New Version created, Portfolio successfully updated.", flash[:notice]
+
+    portfolio.reload
+    latest_version = portfolio.latest_version
+    assert_equal 2, latest_version.version_number
+    assert_equal "Add Microsoft", latest_version.title
+    assert_equal "Switched to MSFT", latest_version.notes
+    assert_equal "MSFT", latest_version.ticker_symbols.first
+  end
+
+  test "should create new version when commit button is Create New Version" do
+    api_url = ENV.fetch("API_URL", "http://localhost:8000")
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    stub_request(:post, "#{api_url}/calculate")
+      .with(
+        body: hash_including("tickers"),
+        headers: { "Content-Type" => "application/json" }
+      )
+      .to_return(
+        status: 200,
+        body: {
+          weights: [
+            { ticker: "GOOGL", weight: 1.0 }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Set up cache with tickers
+    get edit_portfolio_url(portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio.id}"
+    Rails.cache.write(cache_key, [
+      Ticker.new(symbol: "GOOGL", name: "Google")
+    ])
+
+    assert_difference "PortfolioVersion.count", 1 do
+      patch portfolio_url(portfolio), params: {
+        commit: "Create New Version",
+        portfolio: {
+          name: portfolio.name,
+          tickers: [ { symbol: "GOOGL", name: "Google" } ]
+        },
+        portfolio_version: {
+          title: "Add Google"
+        }
+      }
+    end
+
+    assert_redirected_to portfolio_url(portfolio)
+    assert_equal "New Version created, Portfolio successfully updated.", flash[:notice]
+  end
+
+  test "should update current version when create_new_version param is not present" do
+    api_url = ENV.fetch("API_URL", "http://localhost:8000")
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    stub_request(:post, "#{api_url}/calculate")
+      .with(
+        body: hash_including("tickers"),
+        headers: { "Content-Type" => "application/json" }
+      )
+      .to_return(
+        status: 200,
+        body: {
+          weights: [
+            { ticker: "MSFT", weight: 1.0 }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Set up cache with tickers
+    get edit_portfolio_url(portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio.id}"
+    Rails.cache.write(cache_key, [
+      Ticker.new(symbol: "MSFT", name: "Microsoft")
+    ])
+
+    assert_no_difference "PortfolioVersion.count" do
+      patch portfolio_url(portfolio), params: {
+        portfolio: {
+          name: portfolio.name,
+          tickers: [ { symbol: "MSFT", name: "Microsoft" } ]
+        }
+      }
+    end
+
+    assert_redirected_to portfolio_url(portfolio)
+    assert_equal "Portfolio was successfully updated.", flash[:notice]
+
+    portfolio.reload
+    latest_version = portfolio.latest_version
+    assert_equal 1, latest_version.version_number
+    assert_equal "MSFT", latest_version.ticker_symbols.first
+  end
+
+  test "should update current version when Update Current Version button is clicked" do
+    api_url = ENV.fetch("API_URL", "http://localhost:8000")
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    stub_request(:post, "#{api_url}/calculate")
+      .with(
+        body: hash_including("tickers"),
+        headers: { "Content-Type" => "application/json" }
+      )
+      .to_return(
+        status: 200,
+        body: {
+          weights: [
+            { ticker: "GOOGL", weight: 1.0 }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Set up cache with tickers
+    get edit_portfolio_url(portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio.id}"
+    Rails.cache.write(cache_key, [
+      Ticker.new(symbol: "GOOGL", name: "Google")
+    ])
+
+    assert_no_difference "PortfolioVersion.count" do
+      patch portfolio_url(portfolio), params: {
+        commit: "Update Current Version",
+        portfolio: {
+          name: portfolio.name,
+          tickers: [ { symbol: "GOOGL", name: "Google" } ]
+        }
+      }
+    end
+
+    assert_redirected_to portfolio_url(portfolio)
+    assert_equal "Portfolio was successfully updated.", flash[:notice]
+  end
+
+  test "should create new version with empty title and notes" do
+    api_url = ENV.fetch("API_URL", "http://localhost:8000")
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    stub_request(:post, "#{api_url}/calculate")
+      .with(
+        body: hash_including("tickers"),
+        headers: { "Content-Type" => "application/json" }
+      )
+      .to_return(
+        status: 200,
+        body: {
+          weights: [
+            { ticker: "MSFT", weight: 1.0 }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Set up cache with tickers
+    get edit_portfolio_url(portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio.id}"
+    Rails.cache.write(cache_key, [
+      Ticker.new(symbol: "MSFT", name: "Microsoft")
+    ])
+
+    assert_difference "PortfolioVersion.count", 1 do
+      patch portfolio_url(portfolio), params: {
+        create_new_version: "true",
+        portfolio: {
+          name: portfolio.name,
+          tickers: [ { symbol: "MSFT", name: "Microsoft" } ]
+        },
+        portfolio_version: {
+          title: "   ",
+          notes: "   "
+        }
+      }
+    end
+
+    portfolio.reload
+    latest_version = portfolio.latest_version
+    assert_nil latest_version.title
+    assert_nil latest_version.notes
+  end
+
+  test "should show fallback to stored portfolio data when no versions exist" do
+    portfolio = portfolios(:one)
+    # No versions created
+
+    get portfolio_url(portfolio)
+    assert_response :success
+    # Should show stored portfolio data
+    assert_match "AAPL", response.body
+  end
+
+  test "should store allocations in version snapshot when creating new version" do
+    api_url = ENV.fetch("API_URL", "http://localhost:8000")
+    portfolio = portfolios(:one)
+    allocations = { "Bonds" => { "weight" => 20.0, "enabled" => true } }
+    portfolio.update!(allocations: allocations)
+    portfolio.create_initial_version
+
+    stub_request(:post, "#{api_url}/calculate")
+      .with(
+        body: hash_including("tickers"),
+        headers: { "Content-Type" => "application/json" }
+      )
+      .to_return(
+        status: 200,
+        body: {
+          weights: [
+            { ticker: "MSFT", weight: 1.0 }
+          ]
+        }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+    # Set up cache with tickers
+    get edit_portfolio_url(portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio.id}"
+    Rails.cache.write(cache_key, [
+      Ticker.new(symbol: "MSFT", name: "Microsoft")
+    ])
+
+    patch portfolio_url(portfolio), params: {
+      create_new_version: "true",
+      portfolio: {
+        name: portfolio.name,
+        tickers: [ { symbol: "MSFT", name: "Microsoft" } ]
+      }
+    }
+
+    portfolio.reload
+    latest_version = portfolio.latest_version
+    assert_equal allocations, latest_version.allocations
+  end
+
+  test "should use current allocations when viewing version" do
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    # Change allocations after version creation
+    portfolio.update!(allocations: { "Bonds" => { "weight" => 30.0, "enabled" => true } })
+
+    get version_portfolio_url(portfolio, version_number: 1)
+    assert_response :success
+    # Should use current allocations, not historical
+    assert_match "Bonds", response.body if portfolio.allocations.present?
+  end
+
+  test "should handle API failure gracefully when creating version" do
+    api_url = ENV.fetch("API_URL", "http://localhost:8000")
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    # Mock API failure
+    stub_request(:post, "#{api_url}/calculate")
+      .to_return(status: 500, body: "Internal Server Error")
+
+    # Set up cache with tickers
+    get edit_portfolio_url(portfolio)
+    session_id = session[:session_id]
+    cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio.id}"
+    Rails.cache.write(cache_key, [
+      Ticker.new(symbol: "MSFT", name: "Microsoft")
+    ])
+
+    # Should not create version when API fails
+    assert_no_difference "PortfolioVersion.count" do
+      patch portfolio_url(portfolio), params: {
+        create_new_version: "true",
+        portfolio: {
+          name: portfolio.name,
+          tickers: [ { symbol: "MSFT", name: "Microsoft" } ]
+        }
+      }
+    end
+
+    # Should render edit page with error
+    assert_response :unprocessable_entity
+    assert_select "div[style*='color: red']", /There was a problem updating the portfolio/
+  end
 end

@@ -6,25 +6,51 @@ class PortfoliosController < ApplicationController
   end
 
   def show
-    @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
+    # Check if viewing a specific version via URL segment
+    if params[:version_number].present?
+      @version = @portfolio.portfolio_versions.by_version(params[:version_number]).first
 
-    # Create adjusted weights for display (don't mutate @portfolio.weights)
-    @adjusted_weights = @portfolio.weights.dup
+      unless @version
+        redirect_to @portfolio, alert: "Version not found"
+        return
+      end
 
-    if !@portfolio.allocations.nil?
-      # Only count enabled allocations (normalize in memory for calculation)
+      # Use version data for display
+      @tickers = @version.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+      @weights = @version.weights
+      @viewing_version = @version
+    else
+      # Use latest version data (or fallback to stored portfolio data)
+      latest = @portfolio.latest_version
+      if latest
+        @tickers = latest.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+        @weights = latest.weights
+      else
+        # Fallback to stored portfolio data (for backward compatibility)
+        @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+        @weights = @portfolio.weights
+      end
+      @viewing_version = nil
+    end
+
+    # Create adjusted weights for display (don't mutate original weights)
+    @adjusted_weights = @weights.dup
+
+    # Note: Allocations are not versioned, so use current portfolio allocations
+    @allocations = @portfolio.allocations
+
+    # IDEA: disable allocations by default on page load
+
+    if !@allocations.nil?
+      # Apply allocation adjustments (same logic as existing show action)
       allocation_sum = 0
-      @portfolio.allocations.each do |_name, allocation_data|
+      @allocations.each do |_name, allocation_data|
         allocation = normalize_allocation_value(allocation_data)
         if allocation[:enabled]
           allocation_sum += (allocation[:weight].to_f / 100.0)
         end
       end
 
-      # Adjustment formula:
-      # If allocations sum to X%, then stock weights are adjusted by (1 - X)
-      # Example: 20% bonds allocation ? stock weights multiplied by 0.8
-      # Guard against negative adjustments if allocations exceed 100%
       allocation_adjustment = [ 1.0 - allocation_sum, 0.0 ].max
 
       @adjusted_weights.each do |ticker, weight|
@@ -32,7 +58,7 @@ class PortfoliosController < ApplicationController
       end
     end
 
-    Rails.logger.info "\nPortfolio #{@portfolio.name} with tickers #{@portfolio.tickers.map { |ticker| ticker["symbol"] }} and weights #{@portfolio.weights}\n"
+    Rails.logger.info "\nPortfolio #{@portfolio.name} with tickers #{@tickers.map(&:symbol)} and weights #{@weights}\n"
   end
 
   def new
@@ -45,9 +71,11 @@ class PortfoliosController < ApplicationController
     @portfolio = Portfolio.new
 
     @portfolio.name = params[:portfolio][:name]
-    @portfolio.tickers = cached_tickers
+    tickers = cached_tickers
 
-    ticker_symbols = @portfolio.tickers.map { |ticker| ticker["symbol"] }
+    # Convert Ticker objects to hash format for storage
+    ticker_symbols = tickers.map(&:symbol)
+    tickers_hash = tickers.map { |ticker| { "symbol" => ticker.symbol, "name" => ticker.name } }
 
     if ticker_symbols.length <= 0
       @portfolio.errors.add(:tickers, "must include at least one ticker")
@@ -68,12 +96,16 @@ class PortfoliosController < ApplicationController
       return
     end
 
-    Rails.logger.info "\n\nPortfolio #{@portfolio.name} created with tickers #{@portfolio.tickers.map { |ticker| ticker["symbol"] }} and weights #{@portfolio.weights}\n\n"
+    # Set tickers in hash format for storage
+    @portfolio.tickers = tickers_hash
+
+    Rails.logger.info "\n\nPortfolio #{@portfolio.name} created with tickers #{ticker_symbols} and weights #{@portfolio.weights}\n\n"
 
     if params[:commit] == "Search"
       redirect_to tickers_search_path(query: params[:query])
     else
       if @portfolio.save
+        @portfolio.create_initial_version
         redirect_to @portfolio, notice: "Portfolio was successfully created."
       else
         @tickers = cached_tickers
@@ -86,7 +118,14 @@ class PortfoliosController < ApplicationController
   end
 
   def edit
-    tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name:  ticker["name"]) }
+    # Load tickers from latest version (or fallback to stored portfolio data)
+    latest = @portfolio.latest_version
+    if latest
+      tickers = latest.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+    else
+      # Fallback to stored portfolio data (for backward compatibility)
+      tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+    end
     write_cached_tickers(tickers, @portfolio.id)
     @count = tickers.length
     @tickers = tickers
@@ -102,11 +141,11 @@ class PortfoliosController < ApplicationController
 
     # Handle regular portfolio updates from the edit page
     tickers = cached_tickers(@portfolio.id)
-    @portfolio.tickers = tickers
     @portfolio.name = portfolio_params[:name]
 
+    # Calculate new weights before transaction
     begin
-      @portfolio.weights = call_math_engine(tickers.map { |ticker| ticker.symbol })
+      new_weights = call_math_engine(tickers.map { |ticker| ticker.symbol })
     rescue => e
       Rails.logger.error "API call failed: #{e.message}"
       @portfolio.errors.add(:base, "There was a problem updating the portfolio. Please try again.")
@@ -116,8 +155,51 @@ class PortfoliosController < ApplicationController
       return
     end
 
-    if @portfolio.save
-      redirect_to @portfolio, notice: "Portfolio was successfully updated."
+    # Convert tickers to hash format for version storage
+    tickers_hash = tickers.map { |ticker| { "symbol" => ticker.symbol, "name" => ticker.name } }
+
+    # Wrap version creation/update and portfolio update in a transaction for atomicity
+    save_succeeded = false
+    success_message = "Portfolio was successfully updated."
+    Portfolio.transaction do
+      # Check if this is a "Create New Version" request (from standalone version form)
+      if params[:create_new_version] == "true" || params[:commit] == "Create New Version"
+        # Extract version metadata from portfolio_version params
+        version_params = params[:portfolio_version] || {}
+        version_title = version_params[:title]&.strip.presence
+        version_notes = version_params[:notes]&.strip.presence
+
+        # Create a new version with the new tickers and weights
+        @portfolio.create_new_version(
+          tickers: tickers_hash,
+          weights: new_weights,
+          title: version_title,
+          notes: version_notes
+        )
+
+        success_message = "New Version created, Portfolio successfully updated."
+      else
+        # "Update Current Version" - update the latest version instead of creating a new one
+        @portfolio.update_latest_version(
+          tickers: tickers_hash,
+          weights: new_weights
+        )
+      end
+
+      # Update portfolio table with new values (for backward compatibility/cache)
+      @portfolio.tickers = tickers_hash
+      @portfolio.weights = new_weights
+
+      if @portfolio.save
+        save_succeeded = true
+      else
+        raise ActiveRecord::Rollback
+      end
+    end
+
+    # Check if save was successful
+    if save_succeeded
+      redirect_to @portfolio, notice: success_message
     else
       @tickers = tickers
       @count = tickers.length
@@ -210,8 +292,15 @@ class PortfoliosController < ApplicationController
       redirect_to @portfolio, notice: "Allocations were successfully updated."
     else
       Rails.logger.error "Failed to save allocations: #{@portfolio.errors.full_messages.inspect}"
-      @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
-      @adjusted_weights = calculate_adjusted_weights(@portfolio)
+      # Load tickers from latest version (or fallback to stored portfolio data)
+      latest = @portfolio.latest_version
+      if latest
+        @tickers = latest.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+        @adjusted_weights = calculate_adjusted_weights_from_version(latest, @portfolio)
+      else
+        @tickers = @portfolio.tickers.map { |ticker| Ticker.new(symbol: ticker["symbol"], name: ticker["name"]) }
+        @adjusted_weights = calculate_adjusted_weights(@portfolio)
+      end
       render :show, status: :unprocessable_entity
     end
   end
@@ -223,6 +312,30 @@ class PortfoliosController < ApplicationController
   # Guard against negative adjustments if allocations exceed 100%
   def calculate_adjusted_weights(portfolio)
     adjusted_weights = portfolio.weights.dup
+
+    return adjusted_weights if portfolio.allocations.nil?
+
+    # Only count enabled allocations (normalize in memory for calculation)
+    allocation_sum = 0
+    portfolio.allocations.each do |_name, allocation_data|
+      allocation = normalize_allocation_value(allocation_data)
+      if allocation[:enabled]
+        allocation_sum += (allocation[:weight].to_f / 100.0)
+      end
+    end
+
+    allocation_adjustment = [ 1.0 - allocation_sum, 0.0 ].max
+
+    adjusted_weights.each do |ticker, weight|
+      adjusted_weights[ticker] = weight * allocation_adjustment
+    end
+
+    adjusted_weights
+  end
+
+  # Calculate adjusted weights from a version (for error handling)
+  def calculate_adjusted_weights_from_version(version, portfolio)
+    adjusted_weights = version.weights.dup
 
     return adjusted_weights if portfolio.allocations.nil?
 
