@@ -78,40 +78,64 @@
       Version History
     </div>
 
-    <%# TODO: add "current"/"latest" and "base" badges %>
-    <%# TODO: add "show version" button %>
     <%# TODO: move to own partial %>
     <% if @portfolio.portfolio_versions.any? %>
       <div class="space-y-2">
-        <% @portfolio.portfolio_versions.chronological.each do |version| %>
-          <div
-            class="flex flex-col gap-1 items-start p-3 rounded border shadow-sm  border-base-300"
-          >
-            <div class="text-lg font-semibold text-base-content/75">
-              Version
-              <%= version.version_number %>
-              <% if version.title.present? %>
-                -
-                <span class="text-primary"><%= version.title %></span>
+        <% versions = @portfolio.portfolio_versions.chronological %>
+        <% active_version_number =
+          if defined?(@viewing_version) && @viewing_version.present?
+            @viewing_version.version_number
+          else
+            versions.first&.version_number
+          end %>
+        <% versions.each_with_index do |version, index| %>
+          <% badges = [] %>
+          <% if version.version_number == active_version_number %>
+            <% badges << ["Active Version", "ml-1 badge badge-success badge-xs bg-success/85"] %>
+          <% end %>
+          <% if index == versions.length - 1 %>
+            <% badges << ["Base Version", "ml-1 badge badge-primary badge-xs bg-primary/85"] %>
+          <% end %>
+          <div class="flex p-3 w-full rounded border shadow-sm border-base-300">
+            <div class="flex flex-col flex-1 gap-1 items-start">
+              <div class="text-lg font-semibold text-base-content/75">
+                Version
+                <%= version.version_number %>
+                <% if version.title.present? %>
+                  -
+                  <span class="text-primary"><%= version.title %></span>
+                <% end %>
+                <% badges.each do |label, style| %>
+                  <span class="<%= style %>"><%= label %></span>
+                <% end %>
+              </div>
+
+              <% if version.notes.present? %>
+                <div class="text-sm text-base-content/50">
+                  <%= version.notes %>
+                </div>
               <% end %>
+
+              <span class="text-xs text-base-content/50">
+                Created
+                <span class="font-semibold text-base-content/75">
+                  <%= version.created_at.strftime("%B %d, %Y") %>
+                </span>
+                at
+                <span class="font-semibold text-base-content/75">
+                  <%= version.created_at.strftime("%I:%M %p") %>
+                </span>
+              </span>
             </div>
 
-            <% if version.notes.present? %>
-              <div class="text-sm text-base-content/50">
-                <%= version.notes %>
-              </div>
-            <% end %>
-
-            <span class="text-xs text-base-content/50">
-              Created
-              <span class="font-semibold text-base-content/75">
-                <%= version.created_at.strftime("%B %d, %Y") %>
-              </span>
-              at
-              <span class="font-semibold text-base-content/75">
-                <%= version.created_at.strftime("%I:%M %p") %>
-              </span>
-            </span>
+            <div class="flex h-full shrink-0">
+              <%= link_to "Load this Version",
+              version_portfolio_path(
+                id: @portfolio.id,
+                version_number: version.version_number,
+              ),
+              class: "btn btn-accent btn-soft btn-xs" %>
+            </div>
           </div>
         <% end %>
       </div>
