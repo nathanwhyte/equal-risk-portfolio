@@ -28,7 +28,6 @@ class Portfolio < ApplicationRecord
     portfolio_versions.create!(
       tickers: tickers || [],
       weights: weights || {},
-      allocations: allocations,
       title: "Create \"#{name}\"",
       notes: "",
       version_number: 1
@@ -37,13 +36,14 @@ class Portfolio < ApplicationRecord
 
   # Update the latest version with new tickers and weights
   # Used when "Update Current Version" is clicked (no new version created)
-  def update_latest_version(tickers:, weights:)
+  def update_latest_version(tickers:, weights:, cap: nil, top_n: nil)
     latest = latest_version
     if latest
       latest.update!(
         tickers: tickers || [],
         weights: weights || {},
-        allocations: allocations
+        cap_percentage: cap,
+        top_n: top_n
       )
     else
       # If no version exists, create initial version
@@ -53,7 +53,7 @@ class Portfolio < ApplicationRecord
 
   # Create a new version with the provided tickers and weights
   # This is called when "Create New Version" is clicked
-  def create_new_version(tickers:, weights:, title: nil, notes: nil)
+  def create_new_version(tickers:, weights:, title: nil, notes: nil, cap: nil, top_n: nil)
     return unless persisted?
 
     # Use row-level locking to prevent race conditions on version_number
@@ -63,27 +63,8 @@ class Portfolio < ApplicationRecord
       portfolio_versions.create!(
         tickers: tickers || [],
         weights: weights || {},
-        allocations: allocations,
-        title: title,
-        notes: notes,
-        version_number: next_number
-      )
-    end
-  end
-
-  # Manual version creation method (kept for backward compatibility)
-  # Creates version from current state before update
-  def create_version_with_current_state(title: nil, notes: nil)
-    return unless persisted?
-
-    # Use row-level locking to prevent race conditions on version_number
-    with_lock do
-      next_number = portfolio_versions.maximum(:version_number).to_i + 1
-
-      portfolio_versions.create!(
-        tickers: current_tickers,
-        weights: current_weights,
-        allocations: allocations,
+        cap_percentage: cap,
+        top_n: top_n,
         title: title,
         notes: notes,
         version_number: next_number

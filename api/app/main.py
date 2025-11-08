@@ -1,12 +1,12 @@
 import logging
-
-import app.math as math
-import app.fetch as fetch
+from typing import Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 import app.db as db
+import app.fetch as fetch
+import app.math as math
 
 logger = logging.getLogger("uvicorn")
 app = FastAPI()
@@ -16,6 +16,8 @@ db_engine = db.init_db_engine()
 
 class EqualRiskRequest(BaseModel):
     tickers: list[str]
+    cap: Optional[float]
+    top_n: Optional[int]
 
 
 @app.get("/")
@@ -25,7 +27,7 @@ async def root() -> str:
 
 @app.post("/calculate")
 async def calculate_equal_risk(request: EqualRiskRequest):
-    logger.info(f"Received request {request.tickers}")
+    logger.info(f"Received request {request}")
 
     tickers_not_in_db = db.check_tickers(db_engine, request.tickers)
 
@@ -38,6 +40,8 @@ async def calculate_equal_risk(request: EqualRiskRequest):
     weights = math.calculate(
         db_engine,
         request.tickers,
+        cap=request.cap,
+        top_n=request.top_n,
     )
 
     logger.info(f"Returning equal risk weights {weights}")
