@@ -25,7 +25,7 @@ module PortfolioDisplayHelper
 
   def allocation_enabled?(allocation)
     if allocation.is_a?(Hash)
-      allocation["enabled"] != false && allocation[:enabled] != false
+      allocation["enabled"] == true || allocation[:enabled] == true
     else
       true
     end
