@@ -115,7 +115,7 @@ class PortfoliosController < ApplicationController
       return
     end
 
-    Rails.logger.info "\nUpdating Portfolio #{params})\n"
+    Rails.logger.info "\nUpdating Portfolio (#{params})\n"
 
     if params[:cap_and_redistribute] == "true" || params.dig(:portfolio, :cap_and_redistribute) == "true"
       handle_cap_and_redistribute(@portfolio.tickers,
