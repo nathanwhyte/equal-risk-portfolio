@@ -1,3 +1,9 @@
-<h1 class="pt-8 text-2xl font-bold">Edit Portfolio</h1>
+<div class="pt-4 text-sm text-base-content/75">
+  &larr;
+  <%= link_to "Back to Portfolio Overview", @portfolio, class: "link link-hover" %>
+</div>
+
+<h1 class="pt-4 text-2xl font-bold">Edit
+  <span class="text-accent">"<%= @portfolio.name %>"</span></h1>
 
 <%= render partial: "form", locals: { portfolio: @portfolio } %>

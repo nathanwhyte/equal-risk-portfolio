@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_10_25_235332) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_07_034023) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -22,7 +22,26 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_25_235332) do
     t.index ["ticker"], name: "index_close_prices_on_ticker"
   end
 
+  create_table "portfolio_versions", force: :cascade do |t|
+    t.float "cap_percentage"
+    t.datetime "created_at", null: false
+    t.string "notes"
+    t.uuid "portfolio_id", null: false
+    t.jsonb "tickers", null: false
+    t.string "title"
+    t.integer "top_n"
+    t.integer "version_number", null: false
+    t.jsonb "weights", null: false
+    t.index ["created_at"], name: "index_portfolio_versions_on_created_at"
+    t.index ["portfolio_id", "created_at"], name: "index_portfolio_versions_on_portfolio_and_created_at"
+    t.index ["portfolio_id", "version_number"], name: "index_portfolio_versions_on_portfolio_and_version", unique: true
+    t.index ["portfolio_id"], name: "index_portfolio_versions_on_portfolio_id"
+    t.index ["tickers"], name: "index_portfolio_versions_on_tickers_gin", using: :gin
+    t.index ["weights"], name: "index_portfolio_versions_on_weights_gin", using: :gin
+  end
+
   create_table "portfolios", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.jsonb "allocations"
     t.datetime "created_at", null: false
     t.string "name"
     t.jsonb "tickers"
@@ -47,5 +66,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_10_25_235332) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "portfolio_versions", "portfolios"
   add_foreign_key "sessions", "users"
 end

@@ -46,16 +46,17 @@ module SessionTestHelper
       # Note: Current is reset between requests, so we need to restore it
       Thread.current[:current_session] = @test_session
     elsif respond_to?(:page) && page.respond_to?(:driver)
-      # System test approach - set session cookie directly
-      session = user.sessions.create!
-      Current.session = session
+      # System test approach - sign in via the sessions controller
+      # This ensures the cookie is set correctly by Rails
+      visit new_session_path
 
-      # Set the session cookie in the browser
-      page.driver.browser.manage.add_cookie(
-        name: "session_id",
-        value: Rails.application.message_verifier("signed cookie jar").generate(session.id),
-        domain: "localhost"
-      )
+      # Find fields by name or id instead of label
+      fill_in "email_address", with: user.email_address
+      fill_in "password", with: "password"
+      click_button "Sign in"
+
+      # Wait for redirect to complete and page to load
+      sleep(0.3) if defined?(Capybara)
     else
       # Fallback for other test types
       Current.session = user.sessions.create!

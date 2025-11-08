@@ -392,3 +392,41 @@ Alternatively, for development or alternative deployments:
 -   **Migrations**: Always test migrations on a copy of production data
 -   **Backups**: Ensure regular database backups are configured
 -   **Rollbacks**: Write reversible migrations (`up`/`down` or `change` with reversible commands)
+
+## Documentation & File Generation Guidelines
+
+When generating documentation files, instruction Markdown files, or other documentation artifacts, **always include the original prompt or instructions at the top of the document** in a clearly marked section, wrapped in a block quote. This preserves context and helps future contributors understand the document's origin and purpose.
+
+Generated documents should go into the `instructions/` directory if it exists, or the root directory otherwise.
+
+### Format
+
+```markdown
+> **Generated from prompt**: [original prompt text here, wrapped in a block quote]
+
+[Rest of document content]
+```
+
+### Link Formatting
+
+- **URLs**: Wrap URLs in Markdown links with the URL as the visible text by default, unless there's a more descriptive text. Examples:
+  - Default: `[https://hexdocs.pm/phoenix/](https://hexdocs.pm/phoenix/)`
+  - With descriptive text: `[Phoenix Documentation](https://hexdocs.pm/phoenix/)`
+
+### Preserving Original Prompts
+
+- **Important**: If a file already contains a "Generated from prompt" section at the top, **do not modify or replace it** when editing the file. Only add this section when creating a new file. This ensures the original prompt that initiated the file's creation is always preserved, even after multiple edits.
+
+### Rationale
+
+- Maintains context for why the document exists
+- Helps future agents understand the document's purpose
+- Enables easier updates when requirements change
+- Provides audit trail for documentation changes
+- Consistent formatting makes documentation easier to scan and understand
+
+### Examples
+
+- Instruction and planning documents (e.g., optimization plans, refactoring guides)
+- Architecture decision records
+- Any other generated documentation artifacts
