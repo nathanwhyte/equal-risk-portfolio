@@ -9,7 +9,7 @@ from sqlalchemy.engine import Engine
 from app.db import ClosePrice
 
 
-def risk_contributions(weights: np.ndarray, cov_matrix: pd.Series):
+def risk_contributions(weights: np.ndarray, cov_matrix: pd.DataFrame):
     # `weights.T` is shorthand for transposing the weights array
     total_portfolio_variance = np.dot(weights.T, np.dot(cov_matrix.values, weights))
 
@@ -21,7 +21,7 @@ def risk_contributions(weights: np.ndarray, cov_matrix: pd.Series):
     return risk_contrib, total_portfolio_variance
 
 
-def risk_budget_objective(weights: np.ndarray, cov_matrix: pd.Series):
+def risk_budget_objective(weights: np.ndarray, cov_matrix: pd.DataFrame):
     risk_contrib, total_portfolio_variance = risk_contributions(weights, cov_matrix)
     risk_contrib_percent = risk_contrib / total_portfolio_variance
 
@@ -32,9 +32,12 @@ def risk_budget_objective(weights: np.ndarray, cov_matrix: pd.Series):
 
 
 def cap_and_redistribute(
-    raw_weights: pd.Series, past_returns: pd.Series, cap: float, top_n: int
+    raw_weights: pd.Series,
+    past_returns: pd.Series,
+    cap: float,
+    top_n: int,
 ) -> pd.Series:
-    # 1) Apply cap
+    # 1) Apply cap (if provided)
     capped = raw_weights.copy()
     capped = capped.clip(upper=cap)
     surplus = 1.0 - capped.sum()
@@ -47,9 +50,6 @@ def cap_and_redistribute(
     #    Drop tickers missing returns
     valid_returns = past_returns.reindex(capped.index).dropna()
     n = min(top_n, len(valid_returns))
-    if n == 0:
-        # No valid tickers to redistribute into, just renormalize the capped set
-        return capped / capped.sum()
     top_tickers = valid_returns.nlargest(n).index
 
     # 3) Add equal share of surplus to each
@@ -97,7 +97,6 @@ def equal_risk(
         # Calculate past returns over prior year
         past_returns = prior_year_data.iloc[-1] / prior_year_data.iloc[0] - 1.0
         weights_series = cap_and_redistribute(weights_series, past_returns, cap, top_n)
-
 
     return weights_series.map("{:.2%}".format)
 
