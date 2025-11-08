@@ -24,12 +24,14 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
-# Copy application source.
+# Copy application source and install the project.
 COPY . .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
 
 FROM base AS runtime
 
 COPY --from=build /python /python
 ENV PATH="/python/.venv/bin:$PATH"
 
-CMD ["fastapi", "run", "app/main.py", "--port", "3001", "--host", "0.0.0.0"]
+CMD ["python", "-m", "fastapi", "run", "app/main.py", "--port", "3001", "--host", "0.0.0.0"]
