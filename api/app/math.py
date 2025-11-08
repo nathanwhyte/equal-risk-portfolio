@@ -47,6 +47,9 @@ def cap_and_redistribute(
     #    Drop tickers missing returns
     valid_returns = past_returns.reindex(capped.index).dropna()
     n = min(top_n, len(valid_returns))
+    if n == 0:
+        # No valid tickers to redistribute into, just renormalize the capped set
+        return capped / capped.sum()
     top_tickers = valid_returns.nlargest(n).index
 
     # 3) Add equal share of surplus to each
