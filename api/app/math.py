@@ -9,7 +9,7 @@ from sqlalchemy.engine import Engine
 from app.db import ClosePrice
 
 
-def risk_contributions(weights: np.ndarray, cov_matrix: pd.Series):
+def risk_contributions(weights: np.ndarray, cov_matrix: pd.DataFrame):
     # `weights.T` is shorthand for transposing the weights array
     total_portfolio_variance = np.dot(weights.T, np.dot(cov_matrix.values, weights))
 
@@ -21,7 +21,7 @@ def risk_contributions(weights: np.ndarray, cov_matrix: pd.Series):
     return risk_contrib, total_portfolio_variance
 
 
-def risk_budget_objective(weights: np.ndarray, cov_matrix: pd.Series):
+def risk_budget_objective(weights: np.ndarray, cov_matrix: pd.DataFrame):
     risk_contrib, total_portfolio_variance = risk_contributions(weights, cov_matrix)
     risk_contrib_percent = risk_contrib / total_portfolio_variance
 
@@ -31,7 +31,41 @@ def risk_budget_objective(weights: np.ndarray, cov_matrix: pd.Series):
     return np.sum((risk_contrib_percent - target_percent) ** 2)
 
 
-def equal_risk(prior_year_data: pd.DataFrame, current_year_data: pd.DataFrame):
+def cap_and_redistribute(
+    raw_weights: pd.Series,
+    past_returns: pd.Series,
+    cap: float,
+    top_n: int,
+) -> pd.Series:
+    # 1) Apply cap (if provided)
+    capped = raw_weights.copy()
+    capped = capped.clip(upper=cap)
+    surplus = 1.0 - capped.sum()
+
+    if surplus <= 0 or top_n == 0:
+        # All surplus used or no redistribution requested
+        return capped / capped.sum()
+
+    # 2) Identify top N tickers by past_returns
+    #    Drop tickers missing returns
+    valid_returns = past_returns.reindex(capped.index).dropna()
+    n = min(top_n, len(valid_returns))
+    top_tickers = valid_returns.nlargest(n).index
+
+    # 3) Add equal share of surplus to each
+    add_each = surplus / n
+    capped.loc[top_tickers] += add_each
+
+    # 4) Normalize final to exactly sum to 1
+    return capped / capped.sum()
+
+
+def equal_risk(
+    prior_year_data: pd.DataFrame,
+    current_year_data: pd.DataFrame,
+    cap: float | None = None,
+    top_n: int | None = None,
+) -> pd.Series:
     prior_year_data = prior_year_data.dropna(axis=1, how="all")
     current_year_data = current_year_data.dropna(axis=1, how="all")
 
@@ -59,7 +93,10 @@ def equal_risk(prior_year_data: pd.DataFrame, current_year_data: pd.DataFrame):
 
     weights_series = pd.Series(result.x, index=prior_year_data.columns)
 
-    # NOTE: this is where weight cap and redistribute will/would go
+    if cap is not None and top_n is not None:
+        # Calculate past returns over prior year
+        past_returns = prior_year_data.iloc[-1] / prior_year_data.iloc[0] - 1.0
+        weights_series = cap_and_redistribute(weights_series, past_returns, cap, top_n)
 
     return weights_series.map("{:.2%}".format)
 
@@ -98,10 +135,15 @@ def fetch_close_prices(engine: Engine, tickers: list[str]):
     return prior_year_data, current_year_data
 
 
-def calculate(engine: Engine, tickers: list[str]):
+def calculate(
+    engine: Engine,
+    tickers: list[str],
+    cap: float | None = None,
+    top_n: int | None = None,
+):
     prior_year_data, current_year_data = fetch_close_prices(engine, tickers)
 
-    weights_series = equal_risk(prior_year_data, current_year_data)
+    weights_series = equal_risk(prior_year_data, current_year_data, cap, top_n)
 
     weights = [
         {"ticker": ticker, "weight": weight}
