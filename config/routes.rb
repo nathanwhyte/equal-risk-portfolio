@@ -18,7 +18,6 @@ Rails.application.routes.draw do
   resources :portfolios do
     member do
       get "versions/:version_number", to: "portfolios#show", as: :version
-      post "versions/new", to: "portfolios#new_version", as: :new_version
     end
   end
 
