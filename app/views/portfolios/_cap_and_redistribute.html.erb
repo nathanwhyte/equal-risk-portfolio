@@ -36,7 +36,7 @@
                                          class: "input input-sm",
                                          step: 1,
                                          min: 0,
-                                         max: portfolio.tickers.length - 1 %>
+                                         max: [portfolio.tickers&.length.to_i - 1, 0].max %>
 
       <%= cap_redistribute_form.hidden_field :cap_and_redistribute, value: "true" %>
 
