@@ -4,8 +4,6 @@ class CreateClosePrices < ActiveRecord::Migration[8.0]
       t.string :ticker
       t.string :date
       t.float :close
-
-      t.timestamps
     end
 
     add_index :close_prices, :ticker
