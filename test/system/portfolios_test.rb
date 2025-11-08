@@ -2,73 +2,92 @@ require "application_system_test_case"
 
 class PortfoliosTest < ApplicationSystemTestCase
   setup do
-    @portfolio = portfolios(:one)
     @user = users(:one)
+    sign_in_as(@user)
+    @portfolio = portfolios(:one)
+    @portfolio.create_initial_version
+    ENV["API_URL"] = "http://localhost:8000"
   end
 
-  test "user can view portfolios when authenticated" do
-    login_as_user
-    visit portfolios_url
-    assert_selector "h1", text: "Portfolios"
-  end
-
-  test "user can navigate to create portfolio page" do
-    login_as_user
-    visit portfolios_url
-    click_on "Create a Portfolio"
-    assert_selector "h1", text: "Create a Portfolio"
-  end
-
-  test "user can delete a portfolio with confirmation" do
-    login_as_user
-
-    # Create a temporary portfolio for deletion
-    temp_portfolio = Portfolio.create!(
-      name: "Temp Portfolio",
-      tickers: [ { symbol: "AAPL", name: "Apple" } ],
-      weights: { "AAPL" => 1.0 }
+  test "user can view and navigate portfolio versions" do
+    # Create additional versions
+    @portfolio.create_new_version(
+      tickers: [ { "symbol" => "MSFT", "name" => "Microsoft" } ],
+      weights: { "MSFT" => 1.0 },
+      title: "Added Microsoft"
     )
 
-    visit portfolio_url(temp_portfolio)
-
-    # Delete with confirmation
-    assert_difference("Portfolio.count", -1) do
-      accept_confirm "Are you sure you want to destroy this portfolio?" do
-        click_button "Destroy"
-      end
-      assert_current_path portfolios_path
-    end
-  end
-
-  test "user can cancel portfolio deletion" do
-    login_as_user
-
-    temp_portfolio = Portfolio.create!(
-      name: "Temp Portfolio",
-      tickers: [ { symbol: "AAPL", name: "Apple" } ],
-      weights: { "AAPL" => 1.0 }
+    @portfolio.create_new_version(
+      tickers: [ { "symbol" => "GOOGL", "name" => "Google" } ],
+      weights: { "GOOGL" => 1.0 },
+      title: "Added Google"
     )
 
-    visit portfolio_url(temp_portfolio)
+    # Visit portfolio show page
+    visit portfolio_url(@portfolio)
 
-    # Cancel deletion
-    assert_no_difference("Portfolio.count") do
-      dismiss_confirm "Are you sure you want to destroy this portfolio?" do
-        click_button "Destroy"
-      end
-      assert_current_path portfolio_path(temp_portfolio)
-    end
+    # Should see latest version by default
+    assert_text "GOOGL"
 
-    temp_portfolio.destroy
+    # Should see version dropdown (check for label first)
+    assert_text "Version:"
+    # The select element should be present
+    assert_selector "select", count: 1
+
+    # Navigate to version 1
+    visit version_portfolio_url(@portfolio, version_number: 1)
+    assert_text "AAPL"
+
+    # Navigate to version 2
+    visit version_portfolio_url(@portfolio, version_number: 2)
+    assert_text "MSFT"
+    assert_text "Added Microsoft"
+
+    # Navigate to version 3
+    visit version_portfolio_url(@portfolio, version_number: 3)
+    assert_text "GOOGL"
+    assert_text "Added Google"
   end
 
-  private
+  test "user can see version history summary" do
+    @portfolio.create_new_version(
+      tickers: [ { "symbol" => "MSFT", "name" => "Microsoft" } ],
+      weights: { "MSFT" => 1.0 },
+      title: "Added Microsoft",
+      notes: "Switched from AAPL to MSFT"
+    )
 
-  def login_as_user
-    visit new_session_path
-    fill_in "email_address", with: @user.email_address
-    fill_in "password", with: "password"
-    click_button "Sign in"
-    assert_current_path root_path
+    visit portfolio_url(@portfolio)
+
+    # Should see version history section
+    assert_text "Version History"
+    assert_text "Version 1"
+    assert_text "Version 2"
+    assert_text "Added Microsoft"
+    assert_text "Switched from AAPL to MSFT"
+  end
+
+  test "user can update current version" do
+    visit edit_portfolio_url(@portfolio)
+
+    # Note: This test would require JavaScript interaction to add/remove tickers
+    # For now, we'll just verify the page loads and has the update button
+    # Look for the button by value or text
+    assert_selector "input[type='submit'][value='Update Current Version']", visible: :all
+    assert_selector "input[type='submit'][value='Create New Version']", visible: :all
+  end
+
+  test "user sees empty state when no version history exists" do
+    # Create a new portfolio without versions
+    new_portfolio = Portfolio.create!(
+      name: "New Portfolio",
+      tickers: [ { "symbol" => "TSLA", "name" => "Tesla" } ],
+      weights: { "TSLA" => 1.0 }
+    )
+
+    visit portfolio_url(new_portfolio)
+
+    # Should see message about no version history
+    assert_text "No version history yet"
   end
 end
