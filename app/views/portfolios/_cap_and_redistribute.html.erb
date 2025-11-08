@@ -1,0 +1,50 @@
+<div>
+  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute</div>
+
+  <p class="pt-2 pb-1 text-xs text-base-content/50">
+    <span class="font-semibold">
+      Cap
+    </span>
+    the maximum weight percentage for any given stock in the portfolio.
+  </p>
+  <p class="pb-1 text-xs text-base-content/50">
+    <span class="font-semibold">
+      Redistribute
+    </span>
+    the excess weight percentage from the cap to the top
+    <i>N</i>
+    stocks based on prior-year performance.
+  </p>
+
+  <%= form_with(model: portfolio, url: portfolio_path(portfolio), method: :patch) do |cap_redistribute_form| %>
+    <div class="flex flex-col gap-4 pt-2 lg:flex-row lg:items-center">
+      <%= cap_redistribute_form.hidden_field :portfolio_id, value: portfolio.id %>
+
+      <%= cap_redistribute_form.number_field :cap_percentage,
+                                         placeholder: "Cap percentage, e.g. \"8.0\"",
+                                         class: "input input-sm",
+                                         step: 0.01,
+                                         min: 0,
+                                         max: 100 %>
+
+      <%= cap_redistribute_form.number_field :top_n,
+                                         placeholder: "Top N stocks, e.g. \"3\"",
+                                         class: "input input-sm",
+                                         step: 1,
+                                         min: 0,
+                                         max: [
+                                           portfolio.tickers&.length.to_i - 1,
+                                           0,
+                                         ].max %>
+
+      <%= cap_redistribute_form.hidden_field :cap_and_redistribute, value: "true" %>
+
+      <div>
+        <%= cap_redistribute_form.submit "Apply", class: "btn btn-soft btn-success btn-xs" %>
+      </div>
+    </div>
+  <% end %>
+  <p class="pt-2 text-xs font-medium text-base-content/50">
+    <span class="font-bold">NOTE</span>: Applying these settings will create a new portfolio version with the
+    changes.</p>
+</div>

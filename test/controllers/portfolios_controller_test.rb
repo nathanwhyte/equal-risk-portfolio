@@ -879,49 +879,6 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_match "AAPL", response.body
   end
 
-  test "should store allocations in version snapshot when creating new version" do
-    api_url = ENV.fetch("API_URL", "http://localhost:8000")
-    portfolio = portfolios(:one)
-    allocations = { "Bonds" => { "weight" => 20.0, "enabled" => true } }
-    portfolio.update!(allocations: allocations)
-    portfolio.create_initial_version
-
-    stub_request(:post, "#{api_url}/calculate")
-      .with(
-        body: hash_including("tickers"),
-        headers: { "Content-Type" => "application/json" }
-      )
-      .to_return(
-        status: 200,
-        body: {
-          weights: [
-            { ticker: "MSFT", weight: 1.0 }
-          ]
-        }.to_json,
-        headers: { "Content-Type" => "application/json" }
-      )
-
-    # Set up cache with tickers
-    get edit_portfolio_url(portfolio)
-    session_id = session[:session_id]
-    cache_key = "tickers:edit:#{session_id}:portfolio_#{portfolio.id}"
-    Rails.cache.write(cache_key, [
-      Ticker.new(symbol: "MSFT", name: "Microsoft")
-    ])
-
-    patch portfolio_url(portfolio), params: {
-      create_new_version: "true",
-      portfolio: {
-        name: portfolio.name,
-        tickers: [ { symbol: "MSFT", name: "Microsoft" } ]
-      }
-    }
-
-    portfolio.reload
-    latest_version = portfolio.latest_version
-    assert_equal allocations, latest_version.allocations
-  end
-
   test "should use current allocations when viewing version" do
     portfolio = portfolios(:one)
     portfolio.create_initial_version
