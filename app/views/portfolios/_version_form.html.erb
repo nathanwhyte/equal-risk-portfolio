@@ -1,0 +1,35 @@
+<div class="flex flex-col gap-4 py-8">
+  <div>
+    <h2 class="text-2xl font-bold">New Version
+      <span class="ml-1 text-lg italic font-medium text-base-content/25">
+        (optional)</span></h2>
+
+    <p class="pt-1 text-sm text-base-content/50">Create a new version to track changes to your portfolio. You can load
+      this version at any time.</p>
+  </div>
+
+  <%= form_with model: PortfolioVersion.new, url: portfolio_path(portfolio), method: :patch, local: true do |version_form| %>
+    <%= version_form.hidden_field :portfolio_id, value: portfolio.id %>
+
+    <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-2">
+        <%= version_form.label :title, "Version Title", class: "font-medium" %>
+        <%= version_form.text_field :title,
+                                placeholder: "e.g. \"Add Cloudflare\"",
+                                class: "input" %>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <%= version_form.label :notes, "Version Notes", class: "font-medium" %>
+        <%= version_form.text_area :notes,
+                               placeholder:
+                                 "More about changes made in this version...",
+                               class: "w-1/3 textarea" %>
+      </div>
+    </div>
+
+    <%= version_form.hidden_field :create_new_version, value: "true" %>
+    <%= version_form.submit "Create New Version",
+                        class: "btn btn-soft btn-success w-fit" %>
+  <% end %>
+</div>
