@@ -239,7 +239,7 @@ class PortfoliosController < ApplicationController
       if top_n.present? && top_n.to_i > 0
         title_parts << "Top #{top_n}"
       end
-      version_title = title_parts.any? ? title_parts.join(' to ') : "Cap and Redistribute"
+      version_title = title_parts.any? ? title_parts.join(" to ") : "Cap and Redistribute"
       version_notes = nil
 
       # Create a new version with the new tickers and weights
