@@ -94,7 +94,7 @@ def equal_risk(
         # Calculate past returns over prior year
         past_returns = prior_year_data.iloc[-1] / prior_year_data.iloc[0] - 1.0
         weights_series = cap_and_redistribute(weights_series, past_returns, cap, top_n)
-        return weights_series.map("{:.2%}".format)
+
 
     return weights_series.map("{:.2%}".format)
 

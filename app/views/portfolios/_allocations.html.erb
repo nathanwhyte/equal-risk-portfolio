@@ -7,7 +7,13 @@
         <% if allocation_data.is_a?(Hash)
           weight = allocation_data["weight"] || allocation_data[:weight] || 0
           enabled =
-            allocation_data["enabled"] != false && allocation_data[:enabled] != false
+            if allocation_data.key?("enabled")
+              allocation_data["enabled"] == true
+            elsif allocation_data.key?(:enabled)
+              allocation_data[:enabled] == true
+            else
+              true
+            end
         else
           weight = allocation_data.to_f
           enabled = true

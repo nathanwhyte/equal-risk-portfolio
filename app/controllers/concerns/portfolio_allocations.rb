@@ -99,7 +99,7 @@ module PortfolioAllocations
     if value.is_a?(Hash)
       {
         weight: value["weight"] || value[:weight] || value.to_f,
-        enabled: value["enabled"] != false && value[:enabled] != false
+        enabled: value["enabled"] == true || value[:enabled] == true
       }
     else
       {

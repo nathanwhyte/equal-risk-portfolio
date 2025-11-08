@@ -29,7 +29,7 @@ class WeightCalculator
     if value.is_a?(Hash)
       {
         weight: value["weight"] || value[:weight] || value.to_f,
-        enabled: value.key?("enabled") ? value["enabled"] != false : value[:enabled] != false
+        enabled: value.fetch("enabled", value.fetch(:enabled, true)) != false
       }
     else
       {
