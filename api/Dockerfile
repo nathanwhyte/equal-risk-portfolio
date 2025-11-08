@@ -16,19 +16,16 @@ FROM base AS build
 # Install build dependencies only while building wheels.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential curl gcc g++ libpq-dev && \
+    apt-get install --no-install-recommends -y build-essential gcc g++ libpq-dev && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# First layer: resolve and cache Python dependencies.
+# Prime dependency cache. Skip installing the local project to keep this layer stable.
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+    uv sync --frozen --no-dev --no-install-project
 
-# Copy application source and install into the virtual environment.
+# Copy application source.
 COPY . .
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev && \
-    rm -rf "${UV_CACHE_DIR}"
 
 FROM base AS runtime
 
