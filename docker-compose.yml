@@ -1,5 +1,5 @@
 services:
-  web:
+  rails:
     image: nathanwhyte/sandbox:equal-risk-portfolio-rails
     build: .
     restart: always
@@ -10,6 +10,7 @@ services:
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
       EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
+      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db
       EQUAL_RISK_PORTFOLIO_DATABASE: ${EQUAL_RISK_PORTFOLIO_DATABASE}
     develop:
       watch:
@@ -35,7 +36,7 @@ services:
       POLYGON_API_KEY: ${POLYGON_API_KEY}
       EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
       EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
-      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db:5432
+      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db
       EQUAL_RISK_PORTFOLIO_DATABASE: ${EQUAL_RISK_PORTFOLIO_DATABASE}
     develop:
       watch:
@@ -46,7 +47,7 @@ services:
       - db
 
   db:
-    image: postgres:17.6
+    image: postgres:17-alpine
     expose:
       - 5432
     restart: always
@@ -63,7 +64,7 @@ services:
     environment:
       BACKUP_FILENAME: backup-%Y-%m-%dT%H-%M-%S.tar.gz
       BACKUP_LATEST_SYMLINK: backup-latest.tar.gz
-      BACKUP_CRON_EXPRESSION: "0 * * * *"
+      BACKUP_CRON_EXPRESSION: "0 */6 * * *"
     volumes:
       - pgdata-prod:/backup/equal-risk-backup:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
