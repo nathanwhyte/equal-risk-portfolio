@@ -1,15 +1,19 @@
 services:
-  web:
+  rails:
     image: nathanwhyte/sandbox:equal-risk-portfolio-rails
     build: .
     restart: always
-    ports:
-      - 3000:3000
+    labels:
+      docker-rollout.pre-stop-hook: "touch /tmp/drain && sleep 10"
+    expose:
+      - 3000
     environment:
-      API_URL: http://api:3001
+      VIRTUAL_HOST: equalriskportfolio.com,www.equalriskportfolio.com
+      API_URL: http://math:3001
       RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
       EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
       EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
+      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db
       EQUAL_RISK_PORTFOLIO_DATABASE: ${EQUAL_RISK_PORTFOLIO_DATABASE}
     develop:
       watch:
@@ -19,15 +23,23 @@ services:
         - action: sync
           path: config
           target: rails
+    deploy:
+      replicas: 2
+    healthcheck:
+      test: test ! -f /tmp/drain
+      interval: 5s
+      retries: 1
     depends_on:
       - db
-      - api
+      - math
 
-  api:
+  math:
     image: nathanwhyte/sandbox:equal-risk-portfolio-api
     build:
       context: api
       dockerfile: Dockerfile
+    labels:
+      docker-rollout.pre-stop-hook: "touch /tmp/drain && sleep 10"
     restart: always
     expose:
       - 3001
@@ -35,18 +47,22 @@ services:
       POLYGON_API_KEY: ${POLYGON_API_KEY}
       EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
       EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
-      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db:5432
+      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db
       EQUAL_RISK_PORTFOLIO_DATABASE: ${EQUAL_RISK_PORTFOLIO_DATABASE}
     develop:
       watch:
         - action: rebuild
           path: ./api/app
           target: python
+    healthcheck:
+      test: test ! -f /tmp/drain
+      interval: 5s
+      retries: 1
     depends_on:
       - db
 
   db:
-    image: postgres:17.6
+    image: postgres:17
     expose:
       - 5432
     restart: always
@@ -63,7 +79,7 @@ services:
     environment:
       BACKUP_FILENAME: backup-%Y-%m-%dT%H-%M-%S.tar.gz
       BACKUP_LATEST_SYMLINK: backup-latest.tar.gz
-      BACKUP_CRON_EXPRESSION: "0 * * * *"
+      BACKUP_CRON_EXPRESSION: "0 */6 * * *"
     volumes:
       - pgdata-prod:/backup/equal-risk-backup:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -72,3 +88,4 @@ services:
 volumes:
   pgdata-prod:
     name: equal-risk-portfolio-pgdata-prod
+    external: true

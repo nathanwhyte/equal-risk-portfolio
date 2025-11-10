@@ -83,7 +83,7 @@ production:
     <<: *default
     username: equal_risk_portfolio_user
     password: <%= ENV["EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD"] %>
-    host: db
+    host: <%= ENV["EQUAL_RISK_PORTFOLIO_DATABASE_HOST"] %>
     port: 5432
     database: equal_risk_portfolio_production
   cache:
