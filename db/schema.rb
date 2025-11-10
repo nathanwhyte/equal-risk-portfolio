@@ -34,6 +34,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_07_034023) do
     t.jsonb "weights", null: false
     t.index ["portfolio_id", "version_number"], name: "index_portfolio_versions_on_portfolio_and_version", unique: true
     t.index ["portfolio_id"], name: "index_portfolio_versions_on_portfolio_id"
+    t.index ["tickers"], name: "index_portfolio_versions_on_tickers_gin", using: :gin
+    t.index ["weights"], name: "index_portfolio_versions_on_weights_gin", using: :gin
   end
 
   create_table "portfolios", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
