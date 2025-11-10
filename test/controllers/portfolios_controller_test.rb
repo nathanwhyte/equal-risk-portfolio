@@ -635,6 +635,36 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Version not found", flash[:alert]
   end
 
+  test "should set flash notice when viewing specific version" do
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    portfolio.create_new_version(
+      tickers: [ { symbol: "MSFT", name: "Microsoft" } ],
+      weights: { "MSFT" => 1.0 },
+      title: "Added Microsoft"
+    )
+
+    get version_portfolio_url(portfolio, version_number: 2)
+    assert_response :success
+    assert_equal "Viewing Added Microsoft", flash[:notice]
+  end
+
+  test "should set flash notice with default title when version has no title" do
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    portfolio.create_new_version(
+      tickers: [ { symbol: "MSFT", name: "Microsoft" } ],
+      weights: { "MSFT" => 1.0 },
+      title: nil
+    )
+
+    get version_portfolio_url(portfolio, version_number: 2)
+    assert_response :success
+    assert_equal "Viewing Version 2", flash[:notice]
+  end
+
   test "should create new version when create_new_version param is true" do
     api_url = ENV.fetch("API_URL", "http://localhost:8000")
     portfolio = portfolios(:one)
