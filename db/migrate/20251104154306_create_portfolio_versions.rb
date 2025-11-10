@@ -1,6 +1,6 @@
 class CreatePortfolioVersions < ActiveRecord::Migration[8.1]
   def change
-    create_table :portfolio_versions do |t|
+    create_table :portfolio_versions, if_not_exists: true do |t|
       t.references :portfolio, null: false, foreign_key: true, type: :uuid
 
       t.jsonb :tickers, null: false
@@ -13,7 +13,7 @@ class CreatePortfolioVersions < ActiveRecord::Migration[8.1]
       t.datetime :created_at, null: false
 
       # Indexes
-      t.index [ :portfolio_id, :version_number ], unique: true, name: "index_portfolio_versions_on_portfolio_and_version"
+      t.index [ :portfolio_id, :version_number ], unique: true, name: "index_portfolio_versions_on_portfolio_and_version", if_not_exists: true
     end
   end
 end
