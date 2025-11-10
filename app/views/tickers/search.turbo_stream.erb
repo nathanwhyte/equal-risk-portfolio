@@ -2,11 +2,11 @@
   <div class="h-24">
     <div class="grid grid-cols-3 grid-rows-1 gap-4 py-4 w-full">
       <% if !params[:query].present? %>
-        <div class="text-lg font-bold">No results found.</div>
-      <% elsif @results.empty? %>
         <div class="flex justify-center items-center w-full h-full">
           <p class="text-sm font-semibold text-base-content/50">Use the search above to find stocks.</p>
         </div>
+      <% elsif @results.empty? %>
+        <div class="text-lg font-bold">No results found.</div>
       <% else %>
         <%= render partial: "tickers/result",
         collection: @results,
