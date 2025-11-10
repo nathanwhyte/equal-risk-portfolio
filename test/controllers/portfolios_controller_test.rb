@@ -635,7 +635,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Version not found", flash[:alert]
   end
 
-  test "should set flash notice when viewing specific version" do
+  test "should set flash notice when viewing specific version with viewed parameter" do
     portfolio = portfolios(:one)
     portfolio.create_initial_version
 
@@ -645,9 +645,25 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
       title: "Added Microsoft"
     )
 
-    get version_portfolio_url(portfolio, version_number: 2)
+    get version_portfolio_url(portfolio, version_number: 2, viewed: true)
     assert_response :success
     assert_equal "Viewing Added Microsoft", flash[:notice]
+  end
+
+  test "should not set flash notice when viewing version without viewed parameter" do
+    portfolio = portfolios(:one)
+    portfolio.create_initial_version
+
+    portfolio.create_new_version(
+      tickers: [ { symbol: "MSFT", name: "Microsoft" } ],
+      weights: { "MSFT" => 1.0 },
+      title: "Added Microsoft"
+    )
+
+    # Simulate page refresh (no viewed parameter)
+    get version_portfolio_url(portfolio, version_number: 2)
+    assert_response :success
+    assert_nil flash[:notice], "Flash should not be set when viewed parameter is absent"
   end
 
   test "should set flash notice with default title when version has no title" do
@@ -660,7 +676,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
       title: nil
     )
 
-    get version_portfolio_url(portfolio, version_number: 2)
+    get version_portfolio_url(portfolio, version_number: 2, viewed: true)
     assert_response :success
     assert_equal "Viewing Version 2", flash[:notice]
   end

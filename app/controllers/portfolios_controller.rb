@@ -19,8 +19,12 @@ class PortfoliosController < ApplicationController
         return
       end
 
-      version_title = @viewing_version.title.presence || "Version #{@viewing_version.version_number}"
-      flash.now[:notice] = "Viewing #{version_title}"
+      # Only show flash message if this is a fresh navigation (viewed=true parameter)
+      # This prevents the message from showing on page refresh
+      if params[:viewed] == "true"
+        version_title = @viewing_version.title.presence || "Version #{@viewing_version.version_number}"
+        flash.now[:notice] = "Viewing #{version_title}"
+      end
       raw_tickers, raw_weights = version_tickers_and_weights(@viewing_version)
     else
       raw_tickers, raw_weights, _latest = load_latest_version_data(@portfolio)
