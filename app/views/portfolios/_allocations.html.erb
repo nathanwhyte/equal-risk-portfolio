@@ -18,7 +18,7 @@
           weight = allocation_data.to_f
           enabled = true
         end
-        disabled_class = enabled ? "" : "opacity-50 bg-base-200"
+        disabled_class = enabled ? "" : "opacity-50 bg-base-300"
         toggle_button_class = allocation_toggle_class(enabled) %>
         <div
           class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"

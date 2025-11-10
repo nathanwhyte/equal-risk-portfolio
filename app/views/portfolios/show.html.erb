@@ -46,7 +46,9 @@
     </div>
   </div>
 
-  <div>
+  <div
+    class="px-3 pt-2 pb-4 -m-3 rounded-sm border shadow-sm  bg-base-200/25 border-base-content/10"
+  >
     <div class="text-lg font-semibold text-base-content/75">
       Tickers and Weights
       <% badge_class = allocation_badge_class(@portfolio) %>
@@ -69,17 +71,17 @@
     </div>
   </div>
 
-  <div class="py-2 px-3 -my-3 -mx-3 rounded-md border shadow-sm border-base-300">
-    <%= render partial: "cap_and_redistribute", locals: { portfolio: @portfolio } %>
+  <%= render partial: "cap_and_redistribute", locals: { portfolio: @portfolio } %>
+
+  <div
+    class="px-3 pt-2 pb-4 -m-3 rounded-sm border shadow-sm  bg-base-200/25 border-base-content/10"
+  >
+    <%= render partial: "allocations", locals: { portfolio: @portfolio } %>
   </div>
 
-  <%= render partial: "allocations", locals: { portfolio: @portfolio } %>
-
-  <div class="py-2 px-3 -my-3 -mx-3 rounded-md border shadow-sm border-base-300">
-    <%= render partial: "version_history",
-    locals: {
-      portfolio: @portfolio,
-      viewing_version: @viewing_version,
-    } %>
-  </div>
+  <%= render partial: "version_history",
+  locals: {
+    portfolio: @portfolio,
+    viewing_version: @viewing_version,
+  } %>
 </div>
