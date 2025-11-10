@@ -25,5 +25,4 @@ FileUtils.chdir APP_ROOT do
 
   puts "\n>>> Running `rubocop` <<<"
   exec "bin/rubocop -A"
-  puts "✅ Formatting complete"
 end
