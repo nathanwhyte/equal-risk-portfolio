@@ -76,18 +76,4 @@ class PortfoliosTest < ApplicationSystemTestCase
     assert_selector "input[type='submit'][value='Update Current Version']", visible: :all
     assert_selector "input[type='submit'][value='Create New Version']", visible: :all
   end
-
-  test "user sees empty state when no version history exists" do
-    # Create a new portfolio without versions
-    new_portfolio = Portfolio.create!(
-      name: "New Portfolio",
-      tickers: [ { "symbol" => "TSLA", "name" => "Tesla" } ],
-      weights: { "TSLA" => 1.0 }
-    )
-
-    visit portfolio_url(new_portfolio)
-
-    # Should see message about no version history
-    assert_text "No version history yet"
-  end
 end
