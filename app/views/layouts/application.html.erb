@@ -26,6 +26,13 @@
 
   <body class="overflow-x-hidden">
     <%= render partial: "shared/navbar" %>
+    <div
+      class="toast toast-end toast-top"
+      data-controller="flash-toast"
+      data-flash-toast-duration-value="3000"
+    >
+      <%= render partial: "shared/flash" %>
+    </div>
 
     <main>
       <div class="px-4 max-w-7xl lg:mx-auto lg:px-8 sm:px-6"><%= yield %></div>

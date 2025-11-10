@@ -9,7 +9,10 @@
 #   end
 
 if Rails.env.development?
-  # User.create! email_address: "nate@admin.com", password: "unix", password_confirmation: "unix"
+  User.find_or_create_by!(email_address: "nate@admin.com") do |u|
+    u.password = "unix"
+    u.password_confirmation = "unix"
+  end
 
   portfolio = Portfolio.find_or_create_by!(name: "Tech Leaders") do |p|
     p.tickers = [

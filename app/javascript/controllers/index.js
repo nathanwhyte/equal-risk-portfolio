@@ -9,3 +9,6 @@ application.register("hello", HelloController)
 
 import TickersController from "./tickers_controller"
 application.register("tickers", TickersController)
+
+import FlashToastController from "./flash_toast_controller"
+application.register("flash-toast", FlashToastController)

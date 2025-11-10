@@ -1,0 +1,9 @@
+<% flash.each do |type, message| %>
+  <% next if message.blank? %>
+  <div
+    class="alert <%= type.to_s == 'notice' ? 'alert-success' : 'alert-error' %>"
+    data-flash-toast-target="toast"
+  >
+    <span class="font-semibold"><%= message %></span>
+  </div>
+<% end %>

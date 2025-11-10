@@ -3,15 +3,11 @@ class Portfolio < ApplicationRecord
 
   # Scopes for version queries
   def latest_version
-    portfolio_versions.recent.first
+    portfolio_versions.chronological.first
   end
 
   def version_at(version_number)
     portfolio_versions.by_version(version_number).first
-  end
-
-  def versions_after(date)
-    portfolio_versions.where("created_at > ?", date).recent
   end
 
   # Get current tickers from latest version, fallback to stored value

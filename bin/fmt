@@ -9,11 +9,11 @@ end
 
 FileUtils.chdir APP_ROOT do
   puts ">>> Checking dependencies <<<"
+  # Install Rails/Ruby dependencies
   system("bundle check > /dev/null") || system!("bundle install --quiet")
-  puts "✅ Dependencies are in place"
-
   # Install JavaScript dependencies
   system!("bun install --silent")
+  puts "✅ Dependencies are in place"
 
   puts "\n>>> Running `erb-formatter` <<<"
   system("erb-format --write app/views/**/*.*.erb")

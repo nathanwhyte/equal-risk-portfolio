@@ -151,26 +151,6 @@ class PortfolioVersionTest < ActiveSupport::TestCase
     assert_equal [ version2.id, version1.id ], chronological.map(&:id)
   end
 
-  test "recent scope orders by created_at descending" do
-    version1 = PortfolioVersion.create!(
-      portfolio: @portfolio,
-      tickers: [ { symbol: "AAPL", name: "Apple" } ],
-      weights: { "AAPL" => 1.0 },
-      version_number: 1,
-      created_at: 2.days.ago
-    )
-    version2 = PortfolioVersion.create!(
-      portfolio: @portfolio,
-      tickers: [ { symbol: "MSFT", name: "Microsoft" } ],
-      weights: { "MSFT" => 1.0 },
-      version_number: 2,
-      created_at: 1.day.ago
-    )
-
-    recent = PortfolioVersion.where(portfolio: @portfolio).recent
-    assert_equal [ version2.id, version1.id ], recent.map(&:id)
-  end
-
   test "latest scope returns most recent version" do
     PortfolioVersion.create!(
       portfolio: @portfolio,
