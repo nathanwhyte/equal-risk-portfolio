@@ -2,7 +2,7 @@ module PortfolioDisplayHelper
   def version_select_options(portfolio, viewing_version)
     selected_number = viewing_version&.version_number
 
-    portfolio.portfolio_versions.recent.map do |version|
+    portfolio.portfolio_versions.chronological.map do |version|
       label = version.title.presence || "v#{version.version_number}"
       url = version_portfolio_path(portfolio, version.version_number)
       [ label, url, { selected: version.version_number == selected_number } ]

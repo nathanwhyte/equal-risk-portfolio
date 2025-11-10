@@ -3,7 +3,7 @@ class Portfolio < ApplicationRecord
 
   # Scopes for version queries
   def latest_version
-    portfolio_versions.recent.first
+    portfolio_versions.chronological.first
   end
 
   def version_at(version_number)
