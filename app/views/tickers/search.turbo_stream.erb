@@ -1,6 +1,6 @@
 <%= turbo_stream.update "results" do %>
-  <div class="h-38">
-    <div class="grid grid-cols-3 grid-rows-2 gap-4 py-4 w-full min-h-full">
+  <div class="h-24">
+    <div class="grid grid-cols-3 grid-rows-1 gap-4 py-4 w-full">
       <% if !params[:query].present? %>
         <div class="text-lg font-bold">No results found.</div>
       <% elsif @results.empty? %>
@@ -15,8 +15,5 @@
         } %>
       <% end %>
     </div>
-
-    <%# <p class="text-xs text-base-content/50"><span class="font-bold">Didn't find what you were looking for?</span> %>
-    <%#   Try searching by the company or stock name.</p> %>
   </div>
 <% end %>
