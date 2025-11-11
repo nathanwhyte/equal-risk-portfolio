@@ -48,21 +48,17 @@ class PortfoliosController < ApplicationController
     @count = cached_tickers.length
   end
 
-  def copy
+  def new_copy
     @original_portfolio = Portfolio.find(params[:id])
-    @copy_portfolio = Portfolio.new
 
     write_cached_tickers(tickers_from_hash(@original_portfolio.tickers))
 
-    @copy_portfolio.copy_of_id = @original_portfolio.id
-    @copy_portfolio.name = "Copy of #{@original_portfolio.name}"
-
-    # TODO: load any existing allocations and cap+redist. options into tables connected to portfolio copy
-
-    Rails.logger.info "#{@copy_portfolio.pretty_print}"
-
     @tickers = cached_tickers
     @count = cached_tickers.length
+    @copy_portfolio = Portfolio.new(
+      copy_of_id: @original_portfolio.id,
+      name: "Copy of #{@original_portfolio.name}"
+    )
   end
 
   def create

@@ -15,13 +15,9 @@ Rails.application.routes.draw do
   resource :session
   resources :passwords, param: :token
 
-  resources :portfolios do
-    member do
-      get "versions/:version_number", to: "portfolios#show", as: :version
-    end
-  end
+  resources :portfolios
 
-  get "portfolios/:id/copy", to: "portfolios#copy", as: :copy_portfolio
+  get "portfolios/:id/copy", to: "portfolios#new_copy", as: :copy_portfolio
 
   post "tickers/search", to: "tickers#search"
   put "tickers/replace", to: "tickers#replace"
