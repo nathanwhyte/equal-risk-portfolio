@@ -114,13 +114,7 @@ class PortfoliosController < ApplicationController
       if original_portfolio
         @portfolio.copy_of = original_portfolio
         @portfolio.allocations = copy_allocations_from(original_portfolio)
-        @portfolio.cap_and_redistribute_options = original_portfolio.cap_and_redistribute_options.map do |option|
-          CapAndRedistributeOption.new(
-            cap_percentage: option.cap_percentage,
-            top_n: option.top_n,
-            created_at: option.created_at
-          )
-        end
+        @portfolio.cap_and_redistribute_options = copy_cap_and_redistribute_options_from(original_portfolio)
       end
     end
 

@@ -151,4 +151,38 @@ module PortfolioCapAndRedistributeOptions
 
     render :show, status: :unprocessable_entity
   end
+
+  def copy_cap_and_redistribute_options_from(original_portfolio)
+    return [] unless original_portfolio.present?
+
+    # Get tickers from the new portfolio (not the original)
+    raw_tickers = @portfolio.tickers || []
+    tickers_list = Array(raw_tickers).map { |ticker| ticker["symbol"] || ticker[:symbol] }
+
+    # Copy each option and calculate weights for the new portfolio's tickers
+    original_portfolio.cap_and_redistribute_options.map do |original_option|
+      new_option = @portfolio.cap_and_redistribute_options.build(
+        cap_percentage: original_option.cap_percentage,
+        top_n: original_option.top_n,
+        active: false
+      )
+
+      # Calculate weights for the new portfolio's tickers
+      if tickers_list.any?
+        begin
+          new_weights = math_engine_client.calculate_weights(
+            tickers: tickers_list,
+            cap: new_option.cap_percentage,
+            top_n: new_option.top_n
+          )
+          new_option.weights = new_weights
+        rescue MathEngineClient::Error => e
+          Rails.logger.error "Failed to calculate weights for copied option: #{e.message}"
+          # Continue without weights - they can be calculated later when the option is activated
+        end
+      end
+
+      new_option
+    end
+  end
 end
