@@ -18,13 +18,13 @@ repos:
         types: [ruby]
         stages: [pre-commit]
 
-    -   id: test
-        name: Run Rails tests
-        entry: bin/rails test
-        language: ruby
-        pass_filenames: false
-        types: [ruby]
-        stages: [pre-commit]
+    # -   id: test
+    #     name: Run Rails tests
+    #     entry: bin/rails test
+    #     language: ruby
+    #     pass_filenames: false
+    #     types: [ruby]
+    #     stages: [pre-commit]
 
     -   id: prepush
         name: Rails pre-push checks
