@@ -113,13 +113,7 @@ class PortfoliosController < ApplicationController
       original_portfolio = Portfolio.find_by(id: params[:copy_of_id])
       if original_portfolio
         @portfolio.copy_of = original_portfolio
-        @portfolio.allocations = original_portfolio.allocations.map do |alloc|
-          Allocation.new(
-            name: alloc.name,
-            percentage: alloc.percentage,
-            enabled: alloc.enabled
-          )
-        end
+        @portfolio.allocations = copy_allocations_from(original_portfolio)
         @portfolio.cap_and_redistribute_options = original_portfolio.cap_and_redistribute_options.map do |option|
           CapAndRedistributeOption.new(
             cap_percentage: option.cap_percentage,

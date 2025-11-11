@@ -5,9 +5,14 @@ module PortfolioAllocations
 
   def handle_allocations_update
     Portfolio.transaction do
-      toggle_allocation if params[:toggle_allocation].present?
-      remove_allocation if params[:remove_allocation].present?
-      add_allocation if params[:allocation_name].present? && params[:allocation_weight].present?
+      # Check both top-level and nested params (form_with nests, button_to doesn't)
+      toggle_allocation if params[:toggle_allocation].present? || params.dig(:portfolio, :toggle_allocation).present?
+      remove_allocation if params[:remove_allocation].present? || params.dig(:portfolio, :remove_allocation).present?
+
+      # For adding, check nested params from form_with
+      allocation_name = params.dig(:portfolio, :allocation_name) || params[:allocation_name]
+      allocation_weight = params.dig(:portfolio, :allocation_weight) || params[:allocation_weight]
+      add_allocation if allocation_name.present? && allocation_weight.present?
 
       validate_allocation_total
 
@@ -25,8 +30,8 @@ module PortfolioAllocations
   end
 
   def toggle_allocation
-    allocation_name = params[:toggle_allocation]
-    allocation = @portfolio.allocations.find_by(name: allocation_name)
+    allocation_id = params[:toggle_allocation] || params.dig(:portfolio, :toggle_allocation)
+    allocation = @portfolio.allocations.find_by(id: allocation_id)
 
     unless allocation
       @portfolio.errors.add(:allocations, "Allocation not found")
@@ -39,8 +44,8 @@ module PortfolioAllocations
   end
 
   def remove_allocation
-    allocation_name = params[:remove_allocation]
-    allocation = @portfolio.allocations.find_by(name: allocation_name)
+    allocation_id = params[:remove_allocation] || params.dig(:portfolio, :remove_allocation)
+    allocation = @portfolio.allocations.find_by(id: allocation_id)
 
     unless allocation
       @portfolio.errors.add(:allocations, "Allocation not found")
@@ -53,8 +58,8 @@ module PortfolioAllocations
   end
 
   def add_allocation
-    allocation_name = params[:allocation_name].strip
-    allocation_weight = params[:allocation_weight].to_f
+    allocation_name = (params.dig(:portfolio, :allocation_name) || params[:allocation_name]).to_s.strip
+    allocation_weight = (params.dig(:portfolio, :allocation_weight) || params[:allocation_weight]).to_f
 
     if allocation_name.blank?
       @portfolio.errors.add(:allocations, "Allocation name cannot be blank")
@@ -74,7 +79,7 @@ module PortfolioAllocations
     allocation = @portfolio.allocations.build(
       name: allocation_name,
       percentage: allocation_weight,
-      enabled: false
+      enabled: true
     )
 
     unless allocation.save
@@ -113,5 +118,15 @@ module PortfolioAllocations
     ).adjusted_weights
 
     render :show, status: :unprocessable_entity
+  end
+
+  def copy_allocations_from(original_portfolio)
+    original_portfolio.allocations.map do |alloc|
+      Allocation.new(
+        name: alloc.name,
+        percentage: alloc.percentage,
+        enabled: alloc.enabled
+      )
+    end
   end
 end

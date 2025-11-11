@@ -23,7 +23,7 @@
             portfolio_path(portfolio),
             method: :patch,
             params: {
-              toggle_allocation: allocation.name,
+              toggle_allocation: allocation.id,
               update_allocations: "true",
             },
             class: toggle_button_class %>
@@ -32,7 +32,7 @@
             portfolio_path(portfolio),
             method: :patch,
             params: {
-              remove_allocation: allocation.name,
+              remove_allocation: allocation.id,
               update_allocations: "true",
             },
             data: {
@@ -73,16 +73,14 @@
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
       <%= form.text_field :allocation_name,
                       placeholder: "Allocation name, e.g. \"Bonds\"",
-                      class: "input input-sm",
-                      name: "allocation_name" %>
+                      class: "input input-sm" %>
       <%= form.number_field :allocation_weight,
                         placeholder: "Weight %",
                         class: "input input-sm",
-                        name: "allocation_weight",
                         step: 0.01,
                         min: 0,
                         max: 100 %>
-      <%= hidden_field_tag :update_allocations, "true" %>
+      <%= form.hidden_field :update_allocations, value: "true" %>
 
       <div>
         <%= form.submit "Create", class: "btn btn-soft btn-success btn-xs" %>
