@@ -54,23 +54,12 @@ class PortfoliosController < ApplicationController
 
     write_cached_tickers(tickers_from_hash(@original_portfolio.tickers))
 
+    @copy_portfolio.copy_of_id = @original_portfolio.id
+    @copy_portfolio.name = "Copy of #{@original_portfolio.name}"
+
     # TODO: load any existing allocations and cap+redist. options into tables connected to portfolio copy
 
-    # TODO: check for existing portfolio with "Copy of ..." name, increment name as "Copy X of ..."
-
-    existing_copies = Portfolio.where("name = ?", "Copy of #{@original_portfolio.name}%").count
-
-    if existing_copies > 0
-      @copy_portfolio.name = "Copy #{existing_copies + 1} of #{@original_portfolio.name}"
-    else
-      @copy_portfolio.name = "Copy of #{@original_portfolio.name}"
-    end
-
     Rails.logger.info "#{@copy_portfolio.pretty_print}"
-
-    # TODO: call math engine
-
-    @copy_portfolio.save
 
     @tickers = cached_tickers
     @count = cached_tickers.length

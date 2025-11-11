@@ -1,5 +1,8 @@
 class Portfolio < ApplicationRecord
+  belongs_to :copy_of, class_name: "Portfolio", optional: true, foreign_key: "copy_of_id"
+
   has_many :portfolio_versions, dependent: :destroy
+  has_many :copies, class_name: "Portfolio", foreign_key: "copy_of_id"
 
   # Scopes for version queries
   def latest_version
