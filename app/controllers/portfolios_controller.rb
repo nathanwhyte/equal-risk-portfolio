@@ -223,7 +223,9 @@ class PortfoliosController < ApplicationController
     version_cap = cap_percentage > 0 ? cap_percentage / 100.0 : nil
     version_top_n = top_n > 0 ? top_n : nil
 
-    tickers_list = Array(tickers).map { |ticker| ticker["symbol"] || ticker[:symbol] }
+    raw_tickers, _raw_weights, _base = load_base_version_data(@portfolio)
+    tickers_list = Array(raw_tickers).map { |ticker| ticker["symbol"] || ticker[:symbol] }
+
     new_weights = math_engine_client.calculate_weights(
       tickers: tickers_list,
       cap: version_cap,

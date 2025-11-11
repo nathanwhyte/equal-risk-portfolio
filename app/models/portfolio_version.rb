@@ -8,6 +8,7 @@ class PortfolioVersion < ApplicationRecord
 
   # Scopes
   scope :latest, -> { order(created_at: :desc).first }
+  scope :base, -> { order(created_at: :desc).last }
   scope :by_version, ->(num) { where(version_number: num) }
   scope :chronological, -> { order(version_number: :desc) }
 
