@@ -35,16 +35,16 @@ class PortfoliosTest < ApplicationSystemTestCase
     assert_selector "select", count: 1
 
     # Navigate to version 1
-    visit version_portfolio_url(@portfolio, version_number: 1)
+    visit portfolio_url(@portfolio, version_number: 1)
     assert_text "AAPL"
 
     # Navigate to version 2
-    visit version_portfolio_url(@portfolio, version_number: 2)
+    visit portfolio_url(@portfolio, version_number: 2)
     assert_text "MSFT"
     assert_text "Added Microsoft"
 
     # Navigate to version 3
-    visit version_portfolio_url(@portfolio, version_number: 3)
+    visit portfolio_url(@portfolio, version_number: 3)
     assert_text "GOOGL"
     assert_text "Added Google"
   end

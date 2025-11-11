@@ -19,8 +19,23 @@ class WeightCalculator
   attr_reader :weights, :allocations
 
   def enabled_allocation_sum
-    allocations.sum do |allocation|
-      allocation[:enabled] ? (allocation[:percentage].to_f / 100.0) : 0
+    return 0.0 if allocations.blank?
+
+    # Handle both ActiveRecord associations and hash/array inputs
+    if allocations.respond_to?(:sum)
+      # ActiveRecord association or array
+      allocations.sum do |allocation|
+        if allocation.is_a?(Allocation)
+          allocation.enabled ? (allocation.percentage.to_f / 100.0) : 0
+        elsif allocation.is_a?(Hash)
+          # Support hash format for backward compatibility
+          (allocation[:enabled] || allocation["enabled"]) ? ((allocation[:percentage] || allocation["percentage"]).to_f / 100.0) : 0
+        else
+          0
+        end
+      end
+    else
+      0.0
     end
   end
 end
