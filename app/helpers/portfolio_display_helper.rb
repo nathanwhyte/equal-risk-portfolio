@@ -4,7 +4,7 @@ module PortfolioDisplayHelper
 
     portfolio.portfolio_versions.chronological.map do |version|
       label = version.title.presence || "v#{version.version_number}"
-      url = version_portfolio_path(portfolio, version.version_number)
+      url = portfolio_path(portfolio)
       [ label, url, { selected: version.version_number == selected_number } ]
     end
   end

@@ -1,13 +1,14 @@
 class PortfoliosController < ApplicationController
   include PortfolioVersions
   include PortfolioAllocations
+  include PortfolioCapAndRedistributeOptions
   include PortfolioHelper
 
   helper PortfolioDisplayHelper
   before_action :set_portfolio, only: %i[ show edit update destroy ]
 
   def index
-    @portfolios = Portfolio.all
+    @portfolios = Portfolio.all.order(created_at: :asc)
   end
 
   def show
@@ -39,7 +40,7 @@ class PortfoliosController < ApplicationController
       allocations: @allocations
     ).adjusted_weights
 
-    Rails.logger.info "\nPortfolio #{@portfolio.name} with tickers #{@tickers.map(&:symbol)} and weights #{@weights}\n"
+    Rails.logger.info @portfolio.pretty_print
   end
 
   def new
@@ -93,13 +94,34 @@ class PortfoliosController < ApplicationController
     # Set tickers in hash format for storage
     @portfolio.tickers = tickers_hash
 
-    Rails.logger.info "\n\nPortfolio #{@portfolio.name} created with tickers #{ticker_symbols} and weights #{@portfolio.weights}\n\n"
+    if params[:copy_of_id].present?
+      original_portfolio = Portfolio.find_by(id: params[:copy_of_id])
+      if original_portfolio
+        @portfolio.copy_of = original_portfolio
+        @portfolio.allocations = original_portfolio.allocations.map do |alloc|
+          Allocation.new(
+            name: alloc.name,
+            percentage: alloc.percentage,
+            enabled: alloc.enabled
+          )
+        end
+        @portfolio.cap_and_redistribute_options = original_portfolio.cap_and_redistribute_options.map do |option|
+          CapAndRedistributeOption.new(
+            cap_percentage: option.cap_percentage,
+            top_n: option.top_n,
+            created_at: option.created_at
+          )
+        end
+      end
+    end
+
+    Rails.logger.info @portfolio.pretty_print
 
     if params[:commit] == "Search"
       redirect_to tickers_search_path(query: params[:query])
     else
       if @portfolio.save
-        @portfolio.create_initial_version
+        # @portfolio.create_initial_version
         redirect_to @portfolio, notice: "Portfolio was successfully created."
       else
         @tickers = cached_tickers
@@ -134,12 +156,26 @@ class PortfoliosController < ApplicationController
       return
     end
 
+    # Handle cap and redistribute options updates (toggle, remove, add)
+    # Check both top-level and nested params (form_with nests, button_to doesn't)
+    if params[:update_cap_and_redistribute_options] == "true" || params.dig(:portfolio, :update_cap_and_redistribute_options) == "true"
+      handle_cap_and_redistribute_options_update
+      return
+    end
+
     Rails.logger.info "\nUpdating Portfolio (#{params})\n"
 
+    # Handle applying cap and redistribute (creates a new version)
     if params[:cap_and_redistribute] == "true" || params.dig(:portfolio, :cap_and_redistribute) == "true"
-      handle_cap_and_redistribute(@portfolio.tickers,
-        params.dig(:portfolio, :cap_percentage).to_f,
-        params.dig(:portfolio, :top_n).to_i)
+      cap_percentage = params.dig(:portfolio, :cap_percentage).to_f
+      top_n = params.dig(:portfolio, :top_n).to_i
+
+      @portfolio.cap_and_redistribute_options.create!(
+        cap_percentage: cap_percentage / 100.0,
+        top_n: top_n
+      )
+
+      handle_cap_and_redistribute(@portfolio.tickers, cap_percentage, top_n)
       return
     end
 

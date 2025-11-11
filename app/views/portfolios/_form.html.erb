@@ -47,6 +47,8 @@
     <%= form.text_field :name, class: "input" %>
   </div>
 
+  <%= hidden_field_tag :copy_of_id, portfolio.copy_of_id %>
+
   <% if request.path.split('/').last == "edit" %>
     <div class="pt-4"></div>
     <%= form.submit "Update Tickers", class: "btn btn-accent btn-soft" %>

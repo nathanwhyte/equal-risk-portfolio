@@ -19,23 +19,8 @@ class WeightCalculator
   attr_reader :weights, :allocations
 
   def enabled_allocation_sum
-    allocations.sum do |_name, allocation_data|
-      allocation = normalize_allocation(allocation_data)
-      allocation[:enabled] ? (allocation[:weight].to_f / 100.0) : 0
-    end
-  end
-
-  def normalize_allocation(value)
-    if value.is_a?(Hash)
-      {
-        weight: value["weight"] || value[:weight] || value.to_f,
-        enabled: value.fetch("enabled", value.fetch(:enabled, true)) != false
-      }
-    else
-      {
-        weight: value.to_f,
-        enabled: true
-      }
+    allocations.sum do |allocation|
+      allocation[:enabled] ? (allocation[:percentage].to_f / 100.0) : 0
     end
   end
 end

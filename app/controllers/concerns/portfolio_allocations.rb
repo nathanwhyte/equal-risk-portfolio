@@ -4,22 +4,19 @@ module PortfolioAllocations
   private
 
   def handle_allocations_update
-    current_allocations = @portfolio.allocations || {}
-    new_allocations = normalize_allocations_hash(current_allocations.deep_dup)
+    Portfolio.transaction do
+      toggle_allocation if params[:toggle_allocation].present?
+      remove_allocation if params[:remove_allocation].present?
+      add_allocation if params[:allocation_name].present? && params[:allocation_weight].present?
 
-    toggle_allocation(new_allocations) if params[:toggle_allocation].present?
-    remove_allocation(new_allocations) if params[:remove_allocation].present?
-    add_allocation(new_allocations) if params[:allocation_name].present? && params[:allocation_weight].present?
+      validate_allocation_total
 
-    validate_allocation_total(new_allocations)
-
-    unless @portfolio.errors.any?
-      @portfolio.allocations = new_allocations
+      if @portfolio.errors.any?
+        raise ActiveRecord::Rollback
+      end
     end
 
-    Rails.logger.info "Saving allocations: #{@portfolio.allocations.inspect}"
-
-    if @portfolio.errors.empty? && @portfolio.save
+    if @portfolio.errors.empty?
       redirect_to @portfolio, notice: "Allocations were successfully updated."
     else
       Rails.logger.error "Failed to save allocations: #{@portfolio.errors.full_messages.inspect}"
@@ -27,46 +24,69 @@ module PortfolioAllocations
     end
   end
 
-  def toggle_allocation(allocations)
+  def toggle_allocation
     allocation_name = params[:toggle_allocation]
-    return unless allocations[allocation_name].present?
+    allocation = @portfolio.allocations.find_by(name: allocation_name)
 
-    allocation = normalize_allocation_value(allocations[allocation_name])
-    allocations[allocation_name] = {
-      "weight" => allocation[:weight],
-      "enabled" => !allocation[:enabled]
-    }
+    unless allocation
+      @portfolio.errors.add(:allocations, "Allocation not found")
+      return
+    end
+
+    unless allocation.update(enabled: !allocation.enabled)
+      @portfolio.errors.add(:allocations, "Failed to update allocation: #{allocation.errors.full_messages.join(', ')}")
+    end
   end
 
-  def remove_allocation(allocations)
+  def remove_allocation
     allocation_name = params[:remove_allocation]
-    allocations.except!(allocation_name)
+    allocation = @portfolio.allocations.find_by(name: allocation_name)
+
+    unless allocation
+      @portfolio.errors.add(:allocations, "Allocation not found")
+      return
+    end
+
+    unless allocation.destroy
+      @portfolio.errors.add(:allocations, "Failed to remove allocation")
+    end
   end
 
-  def add_allocation(allocations)
+  def add_allocation
     allocation_name = params[:allocation_name].strip
     allocation_weight = params[:allocation_weight].to_f
 
     if allocation_name.blank?
       @portfolio.errors.add(:allocations, "Allocation name cannot be blank")
-    elsif allocation_weight <= 0 || allocation_weight > 100
+      return
+    end
+
+    if allocation_weight <= 0 || allocation_weight > 100
       @portfolio.errors.add(:allocations, "Allocation weight must be between 0 and 100")
-    elsif allocations.any? { |name, _| name.downcase == allocation_name.downcase }
+      return
+    end
+
+    if @portfolio.allocations.exists?(name: allocation_name)
       @portfolio.errors.add(:allocations, "An allocation with this name already exists")
-    else
-      allocations[allocation_name] = {
-        "weight" => allocation_weight,
-        "enabled" => true
-      }
+      return
+    end
+
+    allocation = @portfolio.allocations.build(
+      name: allocation_name,
+      percentage: allocation_weight,
+      enabled: false
+    )
+
+    unless allocation.save
+      @portfolio.errors.add(:allocations, "Failed to create allocation: #{allocation.errors.full_messages.join(', ')}")
     end
   end
 
-  def validate_allocation_total(allocations)
+  def validate_allocation_total
     return if @portfolio.errors.any?
 
-    total_allocation = allocations.sum do |_name, data|
-      allocation = normalize_allocation_value(data)
-      allocation[:enabled] ? (allocation[:weight].to_f / 100.0) : 0
+    total_allocation = @portfolio.allocations.sum do |allocation|
+      allocation.enabled ? (allocation.percentage.to_f / 100.0) : 0
     end
 
     if total_allocation > 1.0
@@ -93,30 +113,5 @@ module PortfolioAllocations
     ).adjusted_weights
 
     render :show, status: :unprocessable_entity
-  end
-
-  def normalize_allocation_value(value)
-    if value.is_a?(Hash)
-      {
-        weight: value["weight"] || value[:weight] || value.to_f,
-        enabled: value["enabled"] == true || value[:enabled] == true
-      }
-    else
-      {
-        weight: value.to_f,
-        enabled: true
-      }
-    end
-  end
-
-  def normalize_allocations_hash(allocations)
-    allocations.each do |name, value|
-      allocation = normalize_allocation_value(value)
-      allocations[name] = {
-        "weight" => allocation[:weight],
-        "enabled" => allocation[:enabled]
-      }
-    end
-    allocations
   end
 end
