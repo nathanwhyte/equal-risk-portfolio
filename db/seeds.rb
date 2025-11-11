@@ -25,12 +25,6 @@ if Rails.env.development?
       "MSFT" => 33.3,
       "GOOGL" => 33.4
     }
-    p.allocations = {
-      "Bonds" => {
-        "weight" => 5.0,
-        "enabled" => false
-      }
-    }
   end
   portfolio.create_initial_version unless portfolio.portfolio_versions.any?
 
@@ -47,14 +41,9 @@ if Rails.env.development?
       "PG" => 25.0,
       "XOM" => 25.0
     }
-    p.allocations = {
-      "Bonds" => {
-        "weight" => 20.0,
-        "enabled" => true
-      }
-    }
   end
   portfolio.create_initial_version unless portfolio.portfolio_versions.any?
+  portfolio.allocations.create!(name: "Bonds", percentage: 20.0, enabled: false) if portfolio.allocations.empty?
 
   portfolio = Portfolio.find_or_create_by!(name: "Growth Stocks") do |p|
     p.tickers = [

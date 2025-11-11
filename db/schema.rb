@@ -17,12 +17,22 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_11_175615) do
 
   create_table "allocations", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "name", null: false
+    t.float "percentage", null: false
+    t.uuid "portfolio_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["portfolio_id"], name: "index_allocations_on_portfolio_id"
   end
 
   create_table "cap_and_redistribute_options", force: :cascade do |t|
+    t.boolean "active", default: false, null: false
+    t.float "cap_percentage", null: false
     t.datetime "created_at", null: false
+    t.uuid "portfolio_id", null: false
+    t.integer "top_n", null: false
     t.datetime "updated_at", null: false
+    t.index ["portfolio_id"], name: "index_cap_and_redistribute_options_on_portfolio_id"
   end
 
   create_table "close_prices", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -78,6 +88,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_11_175615) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "allocations", "portfolios"
+  add_foreign_key "cap_and_redistribute_options", "portfolios"
   add_foreign_key "portfolio_versions", "portfolios"
   add_foreign_key "portfolios", "portfolios", column: "copy_of_id"
   add_foreign_key "sessions", "users"

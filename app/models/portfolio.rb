@@ -2,6 +2,10 @@ class Portfolio < ApplicationRecord
   belongs_to :copy_of, class_name: "Portfolio", optional: true, foreign_key: "copy_of_id"
 
   has_many :portfolio_versions, dependent: :destroy
+
+  has_many :allocations, dependent: :destroy
+  has_many :cap_and_redistribute_options, dependent: :destroy
+
   has_many :copies, class_name: "Portfolio", foreign_key: "copy_of_id"
 
   # Scopes for version queries
@@ -76,37 +80,45 @@ class Portfolio < ApplicationRecord
   end
 
   # Pretty-print portfolio information for debugging and console output
-  def pretty_print(verbose: false)
+  def pretty_print
     output = []
     output << "=" * 80
-    name_line = "Portfolio: #{name}"
-    name_line += " (portfolio.name)" if verbose
-    output << name_line
+    output << "Portfolio: #{name}"
     output << "=" * 80
-    id_line = "ID: #{id}"
-    id_line += " (portfolio.id)" if verbose
-    output << id_line
-    created_line = "Created: #{created_at}"
-    created_line += " (portfolio.created_at)" if verbose
-    output << created_line
-    updated_line = "Updated: #{updated_at}"
-    updated_line += " (portfolio.updated_at)" if verbose
-    output << updated_line
+    output << "ID: #{id}"
+    output << "Created: #{created_at}"
+    output << "Updated: #{updated_at}"
+
+    # Copy information
+    if copy_of.present?
+      output << "Copy of: #{copy_of.name} (ID: #{copy_of.id})"
+    end
+    copies_count = copies.count
+    output << "Copies: #{copies_count}"
+    if copies_count > 0
+      copies.each_with_index do |copy, index|
+        prefix = index == copies_count - 1 ? "└" : "├"
+        output << "#{prefix} #{copy.name} (#{copy.id})"
+      end
+    end
     output << ""
 
     # Version information
     version_count = portfolio_versions.count
     latest = latest_version
     base = base_version
-    versions_line = "Versions: #{version_count}"
-    versions_line = "Versions (portfolio.portfolio_versions, portfolio.latest_version, portfolio.base_version): #{version_count}" if verbose
-    output << versions_line
+    output << "Versions: #{version_count}"
     if latest
-      output << "  Latest: Version #{latest.version_number} (#{latest.created_at})"
-      output << "    Title: #{latest.title}" if latest.title.present?
+      has_base = base && base != latest
+      prefix = has_base ? "├" : "└"
+      output << "#{prefix} Latest: Version #{latest.version_number} (#{latest.created_at})"
+      if latest.title.present?
+        title_prefix = has_base ? "│ └" : "  └"
+        output << "#{title_prefix} Title: #{latest.title}"
+      end
     end
     if base && base != latest
-      output << "  Base: Version #{base.version_number} (#{base.created_at})"
+      output << "└ Base: Version #{base.version_number} (#{base.created_at})"
     end
     output << ""
 
@@ -114,9 +126,7 @@ class Portfolio < ApplicationRecord
     current_t = current_tickers
     current_w = current_weights
 
-    table_line = "Current Tickers & Weights:"
-    table_line = "Current Tickers & Weights (portfolio.current_tickers, portfolio.current_weights):" if verbose
-    output << table_line
+    output << "Current Tickers & Weights:"
 
     if current_t.present? || current_w.present?
       # Collect all symbols from both tickers and weights
@@ -149,62 +159,56 @@ class Portfolio < ApplicationRecord
       weight_width = [ 10, rows.map { |r| r[:weight].length }.max || 0 ].max
 
       # Print header
-      output << "  #{'Symbol'.ljust(symbol_width)} | #{'Name'.ljust(name_width)} | #{'Weight'.ljust(weight_width)}"
-      output << "  #{'-' * symbol_width} | #{'-' * name_width} | #{'-' * weight_width}"
+      output << "│ #{'Symbol'.ljust(symbol_width)} | #{'Name'.ljust(name_width)} | #{'Weight'.ljust(weight_width)}"
+      output << "│ #{'-' * symbol_width} | #{'-' * name_width} | #{'-' * weight_width}"
 
       # Print rows
-      rows.each do |row|
-        output << "  #{row[:symbol].ljust(symbol_width)} | #{row[:name].ljust(name_width)} | #{row[:weight].ljust(weight_width)}"
+      rows.each_with_index do |row, index|
+        prefix = index == rows.length - 1 ? "└" : "├"
+        output << "#{prefix} #{row[:symbol].ljust(symbol_width)} | #{row[:name].ljust(name_width)} | #{row[:weight].ljust(weight_width)}"
       end
     else
-      output << "  (none)"
+      output << "└ (none)"
     end
     output << ""
 
     # Allocations
-    allocations_line = "Allocations:"
-    allocations_line = "Allocations (portfolio.allocations):" if verbose
-    output << allocations_line
-    if allocations.present?
-      allocations.each do |name, allocation_data|
-        if allocation_data.is_a?(Hash)
-          weight = allocation_data["weight"] || allocation_data[:weight] || 0
-          enabled = allocation_data["enabled"] != false
-          status = enabled ? "enabled" : "disabled"
-          output << "  #{name.ljust(20)} | #{format("%.2f", (weight.to_f))}% | #{status}"
-        else
-          weight = allocation_data.to_f
-          output << "  #{name.ljust(20)} | #{format("%.2f", (weight.to_f))}%"
-        end
+    output << "Allocations:"
+    if allocations.any?
+      # Calculate column widths
+      name_width = [ 4, allocations.map { |a| a.name.length }.max || 0 ].max
+      percentage_display = allocations.map { |a| format("%.2f", a.percentage) + "%" }
+      percentage_width = [ 10, percentage_display.map(&:length).max || 0 ].max
+      status_width = [ 6, 8 ].max # "enabled" is 7 chars, "disabled" is 8 chars
+
+      # Print header
+      output << "│ #{'Name'.ljust(name_width)} | #{'Percentage'.ljust(percentage_width)} | #{'Status'.ljust(status_width)}"
+      output << "│ #{'-' * name_width} | #{'-' * percentage_width} | #{'-' * status_width}"
+
+      # Print rows
+      allocations.each_with_index do |allocation, index|
+        status = allocation.enabled ? "enabled" : "disabled"
+        prefix = index == allocations.length - 1 ? "└" : "├"
+        percentage_str = format("%.2f", allocation.percentage) + "%"
+        output << "#{prefix} #{allocation.name.ljust(name_width)} | #{percentage_str.ljust(percentage_width)} | #{status.ljust(status_width)}"
       end
     else
-      output << "  (none)"
+      output << "└ (none)"
     end
     output << ""
 
     # Cap and Redistribute options
-    cap_line = "Cap and Redistribute Options:"
-    cap_line = "Cap and Redistribute Options (portfolio.latest_version.cap_percentage, portfolio.latest_version.top_n):" if verbose
-    output << cap_line
-    if latest
-      cap = latest.cap_percentage
-      top_n = latest.top_n
-      if cap.present? || top_n.present?
-        if cap.present?
-          output << "  Cap Percentage: #{format("%.2f", (cap.to_f * 100))}%"
-        else
-          output << "  Cap Percentage: (not set)"
-        end
-        if top_n.present?
-          output << "  Top N Stocks: #{top_n}"
-        else
-          output << "  Top N Stocks: (not set)"
-        end
-      else
-        output << "  (none)"
+    output << "Cap and Redistribute Options:"
+    if cap_and_redistribute_options.any?
+      cap_and_redistribute_options.each_with_index do |option, option_index|
+        is_last_option = option_index == cap_and_redistribute_options.length - 1
+        prefix = is_last_option ? "└" : "├"
+        output << "#{prefix} Cap Percentage: #{format("%.2f", (option.cap_percentage * 100))}%"
+        continuation = is_last_option ? "  └" : "│ └"
+        output << "#{continuation} Top N Stocks: #{option.top_n}"
       end
     else
-      output << "  (no versions)"
+      output << "└ (none)"
     end
     output << ""
 
