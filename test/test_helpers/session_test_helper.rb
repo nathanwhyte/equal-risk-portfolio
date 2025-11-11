@@ -53,7 +53,7 @@ module SessionTestHelper
       # Find fields by name or id instead of label
       fill_in "email_address", with: user.email_address
       fill_in "password", with: "password"
-      click_button "Sign in"
+      click_button "Sign In"
 
       # Wait for redirect to complete and page to load
       sleep(0.3) if defined?(Capybara)

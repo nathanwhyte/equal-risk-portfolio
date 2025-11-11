@@ -6,6 +6,10 @@ class Portfolio < ApplicationRecord
     portfolio_versions.chronological.first
   end
 
+  def base_version
+    portfolio_versions.chronological.last
+  end
+
   def version_at(version_number)
     portfolio_versions.by_version(version_number).first
   end

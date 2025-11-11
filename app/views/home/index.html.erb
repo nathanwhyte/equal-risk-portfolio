@@ -8,12 +8,19 @@
 
       <% if authenticated? %>
         <div class="flex flex-col text-center hero-content">
-          <%= link_to "View portfolios", portfolios_path, class: "btn btn-accent btn-lg" %>
+          <%= link_to "View Portfolios", portfolios_path, class: "btn btn-accent btn-lg" %>
         </div>
       <% else %>
         <div class="flex flex-col text-center hero-content">
-          <%= link_to "Sign in", new_session_path, class: "btn btn-accent btn-lg" %>
+          <%= link_to "Sign In", new_session_path, class: "btn btn-accent btn-lg" %>
         </div>
+        <div class="font-semibold alert alert-lg alert-soft alert-warning">
+          <%= render "shared/icons/exclamation_triangle" %>
+          Super-secret beta testing is in progress.
+        </div>
+        <p class="block text-xs italic font-medium text-base-content/50">
+          This tool will be publicly available soon!
+        </p>
       <% end %>
     </div>
   </div>

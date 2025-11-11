@@ -17,7 +17,7 @@
         </span>
       </div>
       <div class="flex gap-2 items-center">
-        <%= link_to "Edit",
+        <%#= link_to "Edit",
         edit_portfolio_path(@portfolio),
         class: "btn btn-accent btn-soft" %>
 
@@ -36,17 +36,16 @@
       <label for="version_select" class="text-sm font-semibold text-base-content/75">Version:</label>
       <select
         id="version_select"
-        class="max-w-lg appearance-none cursor-pointer  select select-ghost select-primary"
+        class="max-w-lg appearance-none cursor-pointer select select-ghost select-primary"
         onchange="if(this.value) { window.location.href = this.value; } else { window.location.href = '<%= portfolio_path(@portfolio) %>'; }"
       >
         <%= options_for_select(version_select_options(@portfolio, @viewing_version)) %>
       </select>
-
     </div>
   </header>
 
   <div
-    class="px-3 pt-2 pb-4 -m-3 rounded-sm border shadow-sm  bg-base-200/25 border-base-content/10"
+    class="px-3 pt-2 pb-4 -m-3 rounded-sm border shadow-sm bg-base-200/25 border-base-content/10"
   >
     <div class="text-lg font-semibold text-base-content/75">
       Tickers and Weights
@@ -58,7 +57,7 @@
     <div class="flex flex-wrap gap-4 pt-2">
       <% for ticker in @tickers %>
         <div
-          class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit"
+          class="flex gap-6 items-center p-2 max-w-xs border shadow-md border-base-300 h-fit min-w-3xs w-fit"
         >
           <%= render partial: "weight",
           locals: {
@@ -73,7 +72,7 @@
   <%= render partial: "cap_and_redistribute", locals: { portfolio: @portfolio } %>
 
   <div
-    class="px-3 pt-2 pb-4 -m-3 rounded-sm border shadow-sm  bg-base-200/25 border-base-content/10"
+    class="px-3 pt-2 pb-4 -m-3 rounded-sm border shadow-sm bg-base-200/25 border-base-content/10"
   >
     <%= render partial: "allocations", locals: { portfolio: @portfolio } %>
   </div>
