@@ -17,7 +17,9 @@
         </span>
       </div>
       <div class="flex gap-2 items-center">
-        <%#= link_to "Edit", edit_portfolio_path(@portfolio), class: "btn btn-accent btn-soft" %>
+        <%= link_to "Make a Copy",
+        copy_portfolio_path(@portfolio),
+        class: "btn btn-accent btn-soft" %>
 
         <%= button_to "Delete Portfolio",
         @portfolio,

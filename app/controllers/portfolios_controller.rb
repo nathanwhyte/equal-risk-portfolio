@@ -48,6 +48,13 @@ class PortfoliosController < ApplicationController
     @count = cached_tickers.length
   end
 
+  def copy
+    original_portfolio = Portfolio.find(params[:id])
+    @portfolio = Portfolio.new(
+      name: "Copy of #{original_portfolio.name}"
+    )
+  end
+
   def create
     @portfolio = Portfolio.new
 

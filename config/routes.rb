@@ -21,6 +21,8 @@ Rails.application.routes.draw do
     end
   end
 
+  get "portfolios/:id/copy", to: "portfolios#copy", as: :copy_portfolio
+
   post "tickers/search", to: "tickers#search"
   put "tickers/replace", to: "tickers#replace"
   put "tickers/add", to: "tickers#add"
