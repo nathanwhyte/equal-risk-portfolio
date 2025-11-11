@@ -23,21 +23,4 @@ module PortfolioTestHelper
 
     portfolio
   end
-
-  # Creates a portfolio with a version for testing
-  # Returns the created portfolio
-  def create_portfolio_with_version(version_tickers: nil, version_weights: nil, version_title: nil, **portfolio_options)
-    portfolio = create_test_portfolio(**portfolio_options)
-    portfolio.create_initial_version
-
-    if version_tickers || version_weights
-      portfolio.create_new_version(
-        tickers: version_tickers || portfolio.tickers,
-        weights: version_weights || portfolio.weights,
-        title: version_title
-      )
-    end
-
-    portfolio
-  end
 end

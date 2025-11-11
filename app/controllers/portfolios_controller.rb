@@ -1,5 +1,4 @@
 class PortfoliosController < ApplicationController
-  include PortfolioVersions
   include PortfolioAllocations
   include PortfolioCapAndRedistributeOptions
   include PortfolioHelper
@@ -12,39 +11,19 @@ class PortfoliosController < ApplicationController
   end
 
   def show
-    if params[:version_number].present?
-      @viewing_version = load_portfolio_version(@portfolio, params[:version_number])
+    # Check if there's an active cap and redistribute option
+    active_option = @portfolio.active_cap_and_redistribute_option
 
-      unless @viewing_version
-        redirect_to @portfolio, alert: "Version not found"
-        return
-      end
-
-      # Only show flash message if this is a fresh navigation (viewed=true parameter)
-      # This prevents the message from showing on page refresh
-      if params[:viewed] == "true"
-        version_title = @viewing_version.title.presence || "Version #{@viewing_version.version_number}"
-        flash.now[:notice] = "Viewing #{version_title}"
-      end
-      raw_tickers, raw_weights = version_tickers_and_weights(@viewing_version)
-      @viewing_cap_and_redistribute_option = nil
+    if active_option&.has_weights?
+      # Use portfolio tickers and weights from the active option
+      raw_tickers = @portfolio.tickers || []
+      raw_weights = active_option.weights
+      @viewing_cap_and_redistribute_option = active_option
     else
-      # Check if there's an active cap and redistribute option
-      active_option = @portfolio.active_cap_and_redistribute_option
-
-      if active_option&.has_weights?
-        # Use base version tickers and weights from the active option
-        raw_tickers, _raw_weights, _base = load_base_version_data(@portfolio)
-        raw_weights = active_option.weights
-        @viewing_version = nil
-        @viewing_cap_and_redistribute_option = active_option
-      else
-        # Load tickers and weights directly from portfolio (not from versions)
-        raw_tickers = @portfolio.tickers || []
-        raw_weights = @portfolio.weights || {}
-        @viewing_version = nil
-        @viewing_cap_and_redistribute_option = nil
-      end
+      # Load tickers and weights directly from portfolio
+      raw_tickers = @portfolio.tickers || []
+      raw_weights = @portfolio.weights || {}
+      @viewing_cap_and_redistribute_option = nil
     end
 
     @tickers = tickers_from_hash(raw_tickers)
@@ -124,7 +103,6 @@ class PortfoliosController < ApplicationController
       redirect_to tickers_search_path(query: params[:query])
     else
       if @portfolio.save
-        # @portfolio.create_initial_version
         redirect_to @portfolio, notice: "Portfolio was successfully created."
       else
         @tickers = cached_tickers
@@ -137,13 +115,8 @@ class PortfoliosController < ApplicationController
   end
 
   def edit
-    # Load tickers from latest version (or fallback to stored portfolio data)
-    latest = @portfolio.latest_version
-    tickers = if latest
-      tickers_from_hash(latest.tickers)
-    else
-      tickers_from_hash(@portfolio.tickers)
-    end
+    # Load tickers from portfolio
+    tickers = tickers_from_hash(@portfolio.tickers)
     write_cached_tickers(tickers, @portfolio.id)
     @count = tickers.length
     @tickers = tickers
@@ -204,51 +177,15 @@ class PortfoliosController < ApplicationController
       return
     end
 
-    # Convert tickers to hash format for version storage
+    # Convert tickers to hash format for storage
     tickers_hash = tickers_to_hash(tickers)
 
-    # Wrap version creation/update and portfolio update in a transaction for atomicity
-    save_succeeded = false
-    success_message = "Portfolio was successfully updated."
-    Portfolio.transaction do
-      # Check if this is a "Create New Version" request (from standalone version form)
-      if params[:create_new_version] == "true" || params[:commit] == "Create New Version"
-        # Extract version metadata from portfolio_version params
-        version_params = params[:portfolio_version] || {}
-        version_title = version_params[:title]&.strip.presence
-        version_notes = version_params[:notes]&.strip.presence
+    # Update portfolio with new values
+    @portfolio.tickers = tickers_hash
+    @portfolio.weights = new_weights
 
-        # Create a new version with the new tickers and weights
-        @portfolio.create_new_version(
-          tickers: tickers_hash,
-          weights: new_weights,
-          title: version_title,
-          notes: version_notes
-        )
-
-        success_message = "New Version created, Portfolio successfully updated."
-      else
-        # "Update Current Version" - update the latest version instead of creating a new one
-        @portfolio.update_latest_version(
-          tickers: tickers_hash,
-          weights: new_weights
-        )
-      end
-
-      # Update portfolio table with new values (for backward compatibility/cache)
-      @portfolio.tickers = tickers_hash
-      @portfolio.weights = new_weights
-
-      if @portfolio.save
-        save_succeeded = true
-      else
-        raise ActiveRecord::Rollback
-      end
-    end
-
-    # Check if save was successful
-    if save_succeeded
-      redirect_to @portfolio, notice: success_message
+    if @portfolio.save
+      redirect_to @portfolio, notice: "Portfolio was successfully updated."
     else
       @tickers = tickers
       @count = tickers.length
@@ -279,7 +216,7 @@ class PortfoliosController < ApplicationController
     version_cap = cap_percentage > 0 ? cap_percentage / 100.0 : nil
     version_top_n = top_n > 0 ? top_n : nil
 
-    raw_tickers, _raw_weights, _base = load_base_version_data(@portfolio)
+    raw_tickers = @portfolio.tickers || []
     tickers_arr = Array(raw_tickers)
     tickers_list = tickers_arr.map { |ticker| ticker["symbol"] || ticker[:symbol] }
 
@@ -297,27 +234,7 @@ class PortfoliosController < ApplicationController
 
     save_succeeded = false
     Portfolio.transaction do
-      title_parts = []
-      if cap_percentage.present? && cap_percentage.to_f > 0
-        title_parts << "Cap #{cap_percentage}%"
-      end
-      if top_n.present? && top_n.to_i > 0
-        title_parts << "Top #{top_n}"
-      end
-      version_title = title_parts.any? ? title_parts.join(" to ") : "Cap and Redistribute"
-      version_notes = nil
-
-      # Create a new version with the new tickers and weights
-      @portfolio.create_new_version(
-        tickers: tickers_hash,
-        weights: new_weights,
-        title: version_title,
-        notes: version_notes,
-        cap: version_cap,
-        top_n: version_top_n
-      )
-
-      # Update portfolio table with new values (for backward compatibility/cache)
+      # Update portfolio with new values
       @portfolio.tickers = tickers_hash
       @portfolio.weights = new_weights
 
@@ -338,7 +255,8 @@ class PortfoliosController < ApplicationController
       redirect_to @portfolio, notice: "Cap and redistribute options were successfully applied."
     else
       Rails.logger.error "Failed to apply cap and redistribute options: #{@portfolio.errors.full_messages.inspect}"
-      raw_tickers, raw_weights, @viewing_version = load_latest_version_data(@portfolio)
+      raw_tickers = @portfolio.tickers || []
+      raw_weights = @portfolio.weights || {}
       @tickers = tickers_from_hash(raw_tickers)
       @weights = raw_weights || {}
       @allocations = @portfolio.allocations

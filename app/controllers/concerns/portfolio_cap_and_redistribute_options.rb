@@ -111,8 +111,8 @@ module PortfolioCapAndRedistributeOptions
   def calculate_and_store_weights_for_option(option)
     return if option.has_weights?
 
-    # Load base version data to get tickers
-    raw_tickers, _raw_weights, _base = load_base_version_data(@portfolio)
+    # Load tickers from portfolio
+    raw_tickers = @portfolio.tickers || []
     tickers_arr = Array(raw_tickers)
     tickers_list = tickers_arr.map { |ticker| ticker["symbol"] || ticker[:symbol] }
 
@@ -132,17 +132,11 @@ module PortfolioCapAndRedistributeOptions
   end
 
   def handle_cap_and_redistribute_failure
-    latest = @portfolio.latest_version
-    if latest
-      raw_tickers = latest.tickers
-      weights = latest.weights
-    else
-      raw_tickers = @portfolio.tickers
-      weights = @portfolio.weights
-    end
+    raw_tickers = @portfolio.tickers || []
+    weights = @portfolio.weights || {}
 
     @tickers = tickers_from_hash(raw_tickers)
-    @weights = weights || {}
+    @weights = weights
     @allocations = @portfolio.allocations
     @adjusted_weights = WeightCalculator.new(
       weights: @weights,

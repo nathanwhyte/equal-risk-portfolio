@@ -100,17 +100,11 @@ module PortfolioAllocations
   end
 
   def handle_allocation_failure
-    latest = @portfolio.latest_version
-    if latest
-      raw_tickers = latest.tickers
-      weights = latest.weights
-    else
-      raw_tickers = @portfolio.tickers
-      weights = @portfolio.weights
-    end
+    raw_tickers = @portfolio.tickers || []
+    weights = @portfolio.weights || {}
 
     @tickers = tickers_from_hash(raw_tickers)
-    @weights = weights || {}
+    @weights = weights
     @allocations = @portfolio.allocations
     @adjusted_weights = WeightCalculator.new(
       weights: @weights,

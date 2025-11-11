@@ -8,7 +8,7 @@ class AllocationTest < ActiveSupport::TestCase
   test "should be valid with valid attributes" do
     allocation = Allocation.new(
       portfolio: @portfolio,
-      name: "Cash",
+      name: "Stocks",
       percentage: 20.0,
       enabled: true
     )
@@ -78,7 +78,7 @@ class AllocationTest < ActiveSupport::TestCase
   test "should allow percentage exactly 100" do
     allocation = Allocation.new(
       portfolio: @portfolio,
-      name: "Cash",
+      name: "Stocks",
       percentage: 100.0,
       enabled: true
     )
@@ -89,7 +89,7 @@ class AllocationTest < ActiveSupport::TestCase
   test "should allow percentage exactly 0.01" do
     allocation = Allocation.new(
       portfolio: @portfolio,
-      name: "Cash",
+      name: "Real Estate",
       percentage: 0.01,
       enabled: true
     )

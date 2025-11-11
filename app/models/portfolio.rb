@@ -1,87 +1,24 @@
 class Portfolio < ApplicationRecord
   belongs_to :copy_of, class_name: "Portfolio", optional: true, foreign_key: "copy_of_id"
 
-  has_many :portfolio_versions, dependent: :destroy
-
   has_many :allocations, dependent: :destroy
   has_many :cap_and_redistribute_options, dependent: :destroy
 
   has_many :copies, class_name: "Portfolio", foreign_key: "copy_of_id"
-
-  # Scopes for version queries
-  def latest_version
-    portfolio_versions.chronological.first
-  end
-
-  def base_version
-    portfolio_versions.chronological.last
-  end
-
-  def version_at(version_number)
-    portfolio_versions.by_version(version_number).first
-  end
 
   # Find the active cap and redistribute option for this portfolio
   def active_cap_and_redistribute_option
     cap_and_redistribute_options.active.first
   end
 
-  # Get current tickers from latest version, fallback to stored value
+  # Get current tickers from portfolio
   def current_tickers
-    latest_version&.tickers || tickers || []
+    tickers || []
   end
 
-  # Get current weights from latest version, fallback to stored value
+  # Get current weights from portfolio
   def current_weights
-    latest_version&.weights || weights || {}
-  end
-
-  def create_initial_version
-    portfolio_versions.create!(
-      tickers: tickers || [],
-      weights: weights || {},
-      title: "Create \"#{name}\"",
-      notes: "",
-      version_number: 1
-    )
-  end
-
-  # Update the latest version with new tickers and weights
-  # Used when "Update Current Version" is clicked (no new version created)
-  def update_latest_version(tickers:, weights:, cap: nil, top_n: nil)
-    latest = latest_version
-    if latest
-      latest.update!(
-        tickers: tickers || [],
-        weights: weights || {},
-        cap_percentage: cap,
-        top_n: top_n
-      )
-    else
-      # If no version exists, create initial version
-      create_initial_version
-    end
-  end
-
-  # Create a new version with the provided tickers and weights
-  # This is called when "Create New Version" is clicked
-  def create_new_version(tickers:, weights:, title: nil, notes: nil, cap: nil, top_n: nil)
-    return unless persisted?
-
-    # Use row-level locking to prevent race conditions on version_number
-    with_lock do
-      next_number = portfolio_versions.maximum(:version_number).to_i + 1
-
-      portfolio_versions.create!(
-        tickers: tickers || [],
-        weights: weights || {},
-        cap_percentage: cap,
-        top_n: top_n,
-        title: title,
-        notes: notes,
-        version_number: next_number
-      )
-    end
+    weights || {}
   end
 
   # Pretty-print portfolio information for debugging and console output
