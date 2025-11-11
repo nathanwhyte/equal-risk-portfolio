@@ -224,14 +224,15 @@ class PortfoliosController < ApplicationController
     version_top_n = top_n > 0 ? top_n : nil
 
     raw_tickers, _raw_weights, _base = load_base_version_data(@portfolio)
-    tickers_list = Array(raw_tickers).map { |ticker| ticker["symbol"] || ticker[:symbol] }
+    tickers_arr = Array(raw_tickers)
+    tickers_list = tickers_arr.map { |ticker| ticker["symbol"] || ticker[:symbol] }
 
     new_weights = math_engine_client.calculate_weights(
       tickers: tickers_list,
       cap: version_cap,
       top_n: version_top_n
     )
-    tickers_hash = Array(tickers).map do |ticker|
+    tickers_hash = tickers_arr.map do |ticker|
       {
         "symbol" => ticker["symbol"] || ticker[:symbol],
         "name" => ticker["name"] || ticker[:name]
