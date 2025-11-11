@@ -32,7 +32,9 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_11_175615) do
     t.uuid "portfolio_id", null: false
     t.integer "top_n", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "weights", default: {}, null: false
     t.index ["portfolio_id"], name: "index_cap_and_redistribute_options_on_portfolio_id"
+    t.index ["weights"], name: "index_cap_and_redistribute_options_on_weights_gin", using: :gin
   end
 
   create_table "close_prices", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

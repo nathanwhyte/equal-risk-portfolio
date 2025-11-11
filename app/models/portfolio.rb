@@ -21,6 +21,11 @@ class Portfolio < ApplicationRecord
     portfolio_versions.by_version(version_number).first
   end
 
+  # Find the active cap and redistribute option for this portfolio
+  def active_cap_and_redistribute_option
+    cap_and_redistribute_options.active.first
+  end
+
   # Get current tickers from latest version, fallback to stored value
   def current_tickers
     latest_version&.tickers || tickers || []
@@ -100,25 +105,6 @@ class Portfolio < ApplicationRecord
         prefix = index == copies_count - 1 ? "└" : "├"
         output << "#{prefix} #{copy.name} (#{copy.id})"
       end
-    end
-    output << ""
-
-    # Version information
-    version_count = portfolio_versions.count
-    latest = latest_version
-    base = base_version
-    output << "Versions: #{version_count}"
-    if latest
-      has_base = base && base != latest
-      prefix = has_base ? "├" : "└"
-      output << "#{prefix} Latest: Version #{latest.version_number} (#{latest.created_at})"
-      if latest.title.present?
-        title_prefix = has_base ? "│ └" : "  └"
-        output << "#{title_prefix} Title: #{latest.title}"
-      end
-    end
-    if base && base != latest
-      output << "└ Base: Version #{base.version_number} (#{base.created_at})"
     end
     output << ""
 
@@ -203,7 +189,8 @@ class Portfolio < ApplicationRecord
       cap_and_redistribute_options.each_with_index do |option, option_index|
         is_last_option = option_index == cap_and_redistribute_options.length - 1
         prefix = is_last_option ? "└" : "├"
-        output << "#{prefix} Cap Percentage: #{format("%.2f", (option.cap_percentage * 100))}%"
+        active_status = option.active? ? " (active)" : " (inactive)"
+        output << "#{prefix} Cap Percentage: #{format("%.2f", (option.cap_percentage * 100))}%#{active_status}"
         continuation = is_last_option ? "  └" : "│ └"
         output << "#{continuation} Top N Stocks: #{option.top_n}"
       end

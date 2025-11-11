@@ -27,9 +27,24 @@ class PortfoliosController < ApplicationController
         flash.now[:notice] = "Viewing #{version_title}"
       end
       raw_tickers, raw_weights = version_tickers_and_weights(@viewing_version)
+      @viewing_cap_and_redistribute_option = nil
     else
-      raw_tickers, raw_weights, _latest = load_latest_version_data(@portfolio)
-      @viewing_version = nil
+      # Check if there's an active cap and redistribute option
+      active_option = @portfolio.active_cap_and_redistribute_option
+
+      if active_option&.has_weights?
+        # Use base version tickers and weights from the active option
+        raw_tickers, _raw_weights, _base = load_base_version_data(@portfolio)
+        raw_weights = active_option.weights
+        @viewing_version = nil
+        @viewing_cap_and_redistribute_option = active_option
+      else
+        # Load tickers and weights directly from portfolio (not from versions)
+        raw_tickers = @portfolio.tickers || []
+        raw_weights = @portfolio.weights || {}
+        @viewing_version = nil
+        @viewing_cap_and_redistribute_option = nil
+      end
     end
 
     @tickers = tickers_from_hash(raw_tickers)
@@ -170,10 +185,14 @@ class PortfoliosController < ApplicationController
       cap_percentage = params.dig(:portfolio, :cap_percentage).to_f
       top_n = params.dig(:portfolio, :top_n).to_i
 
-      @portfolio.cap_and_redistribute_options.create!(
+      new_option = @portfolio.cap_and_redistribute_options.create!(
         cap_percentage: cap_percentage / 100.0,
-        top_n: top_n
+        top_n: top_n,
+        active: false
       )
+
+      # Mark the new option as active and deactivate all others
+      new_option.activate!
 
       handle_cap_and_redistribute(@portfolio.tickers, cap_percentage, top_n)
       return
@@ -313,6 +332,12 @@ class PortfoliosController < ApplicationController
       # Update portfolio table with new values (for backward compatibility/cache)
       @portfolio.tickers = tickers_hash
       @portfolio.weights = new_weights
+
+      # Update the active cap and redistribute option with the calculated weights
+      active_option = @portfolio.active_cap_and_redistribute_option
+      if active_option
+        active_option.update!(weights: new_weights)
+      end
 
       if @portfolio.save
         save_succeeded = true

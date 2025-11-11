@@ -8,6 +8,7 @@ module PortfolioCapAndRedistributeOptions
       # Check both top-level and nested params (form_with nests, button_to doesn't)
       toggle_cap_and_redistribute_option if params[:toggle_cap_and_redistribute_option].present? || params.dig(:portfolio, :toggle_cap_and_redistribute_option).present?
       remove_cap_and_redistribute_option if params[:remove_cap_and_redistribute_option].present? || params.dig(:portfolio, :remove_cap_and_redistribute_option).present?
+      clear_cap_and_redistribute_options if params[:clear_cap_and_redistribute_options].present? || params.dig(:portfolio, :clear_cap_and_redistribute_options).present?
 
       # For adding, check nested params from form_with
       cap_percentage = params.dig(:portfolio, :cap_percentage) || params[:cap_percentage]
@@ -27,6 +28,10 @@ module PortfolioCapAndRedistributeOptions
     end
   end
 
+  def clear_cap_and_redistribute_options
+    @portfolio.cap_and_redistribute_options.all.update_all(active: false)
+  end
+
   def toggle_cap_and_redistribute_option
     option_id = params[:toggle_cap_and_redistribute_option] || params.dig(:portfolio, :toggle_cap_and_redistribute_option)
     option = @portfolio.cap_and_redistribute_options.find_by(id: option_id)
@@ -38,6 +43,13 @@ module PortfolioCapAndRedistributeOptions
 
     unless option.update(active: !option.active)
       @portfolio.errors.add(:cap_and_redistribute_options, "Failed to update option: #{option.errors.full_messages.join(', ')}")
+      return
+    end
+
+    if option.active
+      option.activate!
+      # Calculate and store weights if they don't exist
+      calculate_and_store_weights_for_option(option) unless option.has_weights?
     end
   end
 
@@ -86,6 +98,36 @@ module PortfolioCapAndRedistributeOptions
 
     unless option.save
       @portfolio.errors.add(:cap_and_redistribute_options, "Failed to create option: #{option.errors.full_messages.join(', ')}")
+      return
+    end
+
+    # Mark the new option as active and deactivate all others
+    option.activate!
+
+    # Calculate and store weights for the new option
+    calculate_and_store_weights_for_option(option)
+  end
+
+  def calculate_and_store_weights_for_option(option)
+    return if option.has_weights?
+
+    # Load base version data to get tickers
+    raw_tickers, _raw_weights, _base = load_base_version_data(@portfolio)
+    tickers_arr = Array(raw_tickers)
+    tickers_list = tickers_arr.map { |ticker| ticker["symbol"] || ticker[:symbol] }
+
+    # Calculate weights with cap and redistribute settings
+    begin
+      new_weights = math_engine_client.calculate_weights(
+        tickers: tickers_list,
+        cap: option.cap_percentage,
+        top_n: option.top_n
+      )
+
+      option.update!(weights: new_weights)
+    rescue MathEngineClient::Error => e
+      Rails.logger.error "Failed to calculate weights for option: #{e.message}"
+      @portfolio.errors.add(:cap_and_redistribute_options, "Failed to calculate weights: #{e.message}")
     end
   end
 

@@ -1,12 +1,11 @@
 <div>
-  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute</div>
+  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute Options</div>
 
-  <div class="flex flex-wrap gap-4 pt-2">
+  <div class="flex flex-wrap gap-4 items-center pt-2">
     <% if portfolio.cap_and_redistribute_options.present? %>
       <% portfolio.cap_and_redistribute_options.each do |option| %>
-        <% disabled_class =
-          option.active ? "btn-disabled bg-base-100" : "opacity-50 bg-base-300"
-        toggle_button_class = allocation_toggle_class(option.active) %>
+        <% disabled_class = option.active ? "bg-base-100" : "opacity-50 bg-base-300"
+        toggle_button_class = cap_and_redistribute_toggle_class(option.active) %>
         <div
           class="flex gap-6 items-center p-2 max-w-xs border shadow-sm  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
         >
@@ -35,10 +34,27 @@
               remove_cap_and_redistribute_option: option.id,
               update_cap_and_redistribute_options: "true",
             },
+            data: {
+              turbo_confirm: "Are you sure you want to remove this option?",
+            },
             class: "btn btn-error btn-soft btn-xs" %>
           </div>
         </div>
       <% end %>
+
+      <div
+        class="tooltip"
+        data-tip="Disables any active cap and redistribute options and shows the base portfolio."
+      >
+        <%= button_to "View Base Portfolio",
+        portfolio_path(portfolio),
+        method: :patch,
+        params: {
+          clear_cap_and_redistribute_options: "true",
+          update_cap_and_redistribute_options: "true",
+        },
+        class: "btn btn-xs" %>
+      </div>
     <% else %>
       <p class="text-sm italic text-base-content/25">No cap and redistribute options added yet.</p>
     <% end %>

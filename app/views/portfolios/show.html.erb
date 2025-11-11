@@ -31,17 +31,6 @@
         class: "btn btn-error btn-soft" %>
       </div>
     </div>
-
-    <div class="flex gap-2 items-center pt-2">
-      <label for="version_select" class="text-sm font-semibold text-base-content/75">Version:</label>
-      <select
-        id="version_select"
-        class="max-w-lg appearance-none cursor-pointer  select select-ghost select-primary"
-        onchange="if(this.value) { window.location.href = this.value; } else { window.location.href = '<%= portfolio_path(@portfolio) %>'; }"
-      >
-        <%= options_for_select(version_select_options(@portfolio, @viewing_version)) %>
-      </select>
-    </div>
   </header>
 
   <div
