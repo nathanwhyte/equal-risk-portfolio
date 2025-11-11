@@ -66,14 +66,4 @@ class PortfoliosTest < ApplicationSystemTestCase
     assert_text "Added Microsoft"
     assert_text "Switched from AAPL to MSFT"
   end
-
-  test "user can update current version" do
-    visit edit_portfolio_url(@portfolio)
-
-    # Note: This test would require JavaScript interaction to add/remove tickers
-    # For now, we'll just verify the page loads and has the update button
-    # Look for the button by value or text
-    assert_selector "input[type='submit'][value='Update Current Version']", visible: :all
-    assert_selector "input[type='submit'][value='Create New Version']", visible: :all
-  end
 end

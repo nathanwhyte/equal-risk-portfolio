@@ -49,8 +49,8 @@
 
   <% if request.path.split('/').last == "edit" %>
     <div class="pt-4"></div>
-    <%= form.submit "Update Current Version", class: "btn btn-accent btn-soft" %>
-    <%= render partial: "version_form", locals: { portfolio: portfolio } %>
+    <%= form.submit "Update Tickers", class: "btn btn-accent btn-soft" %>
+    <%# <%= render partial: "version_form", locals: { portfolio: portfolio } %>
   <% else %>
     <div class="pt-8">
       <%= form.submit "Create", class: "btn btn-accent" %>
