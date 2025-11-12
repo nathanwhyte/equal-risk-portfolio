@@ -4,6 +4,7 @@ class PortfoliosController < ApplicationController
   include PortfolioHelper
 
   helper PortfolioDisplayHelper
+  helper AllocationHelper
   before_action :set_portfolio, only: %i[ show edit update destroy ]
 
   def index
@@ -212,7 +213,7 @@ class PortfoliosController < ApplicationController
   private
 
   def set_portfolio
-    @portfolio = Portfolio.find(params.expect(:id))
+    @portfolio = Portfolio.includes(:cap_and_redistribute_options).find(params.expect(:id))
   end
 
   def portfolio_params

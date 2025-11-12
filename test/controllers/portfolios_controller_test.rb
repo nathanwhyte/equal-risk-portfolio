@@ -531,7 +531,7 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
       enabled: true
     )
 
-    # Try to add duplicate with exact same name (case-sensitive check)
+    # Try to add duplicate with exact same name
     patch portfolio_url(portfolio), params: {
       update_allocations: "true",
       allocation_name: "Cash",
@@ -542,6 +542,25 @@ class PortfoliosControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, portfolio.allocations.count, "Duplicate allocation should not be added"
     # Check that error message is in the response body
     assert_match(/already exists/, response.body, "Should display error about duplicate allocation name")
+  end
+
+  test "should allow allocation names with different case" do
+    portfolio = create_test_portfolio
+    portfolio.allocations.create!(
+      name: "Cash",
+      percentage: 20.0,
+      enabled: true
+    )
+
+    # Try to add allocation with different case (should succeed with case-sensitive validation)
+    patch portfolio_url(portfolio), params: {
+      update_allocations: "true",
+      allocation_name: "cash",
+      allocation_weight: "10"
+    }
+
+    portfolio.reload
+    assert_equal 2, portfolio.allocations.count, "Allocation with different case should be added"
   end
 
   test "should allow exactly 100% total allocations" do

@@ -66,11 +66,6 @@ module PortfolioAllocations
       return
     end
 
-    if allocation_weight <= 0 || allocation_weight > 100
-      @portfolio.errors.add(:allocations, "Allocation weight must be between 0 and 100")
-      return
-    end
-
     if @portfolio.allocations.exists?(name: allocation_name)
       @portfolio.errors.add(:allocations, "An allocation with this name already exists")
       return
@@ -114,6 +109,9 @@ module PortfolioAllocations
     render :show, status: :unprocessable_entity
   end
 
+  # Copy allocations from an original portfolio to build new Allocation objects.
+  # Note: These allocations are not yet associated with a portfolio and must be
+  # assigned to a portfolio before saving (e.g., @portfolio.allocations = copy_allocations_from(original))
   def copy_allocations_from(original_portfolio)
     original_portfolio.allocations.map do |alloc|
       Allocation.new(

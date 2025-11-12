@@ -18,7 +18,7 @@ class WeightCalculatorTest < ActiveSupport::TestCase
       weights: { "AAPL" => 1.0 }
     )
     weights = { "AAPL" => 0.5, "MSFT" => 0.5 }
-    allocation = portfolio.allocations.create!(
+    portfolio.allocations.create!(
       name: "Cash",
       percentage: 20.0,
       enabled: true
@@ -39,7 +39,7 @@ class WeightCalculatorTest < ActiveSupport::TestCase
       weights: { "AAPL" => 1.0 }
     )
     weights = { "AAPL" => 0.5 }
-    allocation = portfolio.allocations.create!(
+    portfolio.allocations.create!(
       name: "Cash",
       percentage: 20.0,
       enabled: false

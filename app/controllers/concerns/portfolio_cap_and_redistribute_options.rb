@@ -3,16 +3,20 @@ module PortfolioCapAndRedistributeOptions
 
   private
 
+  def get_param(key)
+    params[key] || params.dig(:portfolio, key)
+  end
+
   def handle_cap_and_redistribute_options_update
     Portfolio.transaction do
       # Check both top-level and nested params (form_with nests, button_to doesn't)
-      toggle_cap_and_redistribute_option if params[:toggle_cap_and_redistribute_option].present? || params.dig(:portfolio, :toggle_cap_and_redistribute_option).present?
-      remove_cap_and_redistribute_option if params[:remove_cap_and_redistribute_option].present? || params.dig(:portfolio, :remove_cap_and_redistribute_option).present?
-      clear_cap_and_redistribute_options if params[:clear_cap_and_redistribute_options].present? || params.dig(:portfolio, :clear_cap_and_redistribute_options).present?
+      toggle_cap_and_redistribute_option if get_param(:toggle_cap_and_redistribute_option).present?
+      remove_cap_and_redistribute_option if get_param(:remove_cap_and_redistribute_option).present?
+      clear_cap_and_redistribute_options if get_param(:clear_cap_and_redistribute_options).present?
 
       # For adding, check nested params from form_with
-      cap_percentage = params.dig(:portfolio, :cap_percentage) || params[:cap_percentage]
-      top_n = params.dig(:portfolio, :top_n) || params[:top_n]
+      cap_percentage = get_param(:cap_percentage)
+      top_n = get_param(:top_n)
       add_cap_and_redistribute_option if cap_percentage.present? && top_n.present?
 
       if @portfolio.errors.any?
@@ -28,12 +32,14 @@ module PortfolioCapAndRedistributeOptions
     end
   end
 
+  # Deactivate all cap and redistribute options for this portfolio
+  # Note: Uses update_all to bypass callbacks for performance
   def clear_cap_and_redistribute_options
     @portfolio.cap_and_redistribute_options.all.update_all(active: false)
   end
 
   def toggle_cap_and_redistribute_option
-    option_id = params[:toggle_cap_and_redistribute_option] || params.dig(:portfolio, :toggle_cap_and_redistribute_option)
+    option_id = get_param(:toggle_cap_and_redistribute_option)
     option = @portfolio.cap_and_redistribute_options.find_by(id: option_id)
 
     unless option
@@ -54,7 +60,7 @@ module PortfolioCapAndRedistributeOptions
   end
 
   def remove_cap_and_redistribute_option
-    option_id = params[:remove_cap_and_redistribute_option] || params.dig(:portfolio, :remove_cap_and_redistribute_option)
+    option_id = get_param(:remove_cap_and_redistribute_option)
     option = @portfolio.cap_and_redistribute_options.find_by(id: option_id)
 
     unless option
@@ -68,8 +74,8 @@ module PortfolioCapAndRedistributeOptions
   end
 
   def add_cap_and_redistribute_option
-    cap_percentage = (params.dig(:portfolio, :cap_percentage) || params[:cap_percentage]).to_f
-    top_n = (params.dig(:portfolio, :top_n) || params[:top_n]).to_i
+    cap_percentage = get_param(:cap_percentage).to_f
+    top_n = get_param(:top_n).to_i
 
     if cap_percentage <= 0 || cap_percentage > 100
       @portfolio.errors.add(:cap_and_redistribute_options, "Cap percentage must be between 0 and 100")
@@ -128,6 +134,7 @@ module PortfolioCapAndRedistributeOptions
     rescue MathEngineClient::Error => e
       Rails.logger.error "Failed to calculate weights for option: #{e.message}"
       @portfolio.errors.add(:cap_and_redistribute_options, "Failed to calculate weights: #{e.message}")
+      raise ActiveRecord::Rollback
     end
   end
 

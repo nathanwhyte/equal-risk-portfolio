@@ -6,6 +6,8 @@ class Portfolio < ApplicationRecord
 
   has_many :copies, class_name: "Portfolio", foreign_key: "copy_of_id"
 
+  validate :cannot_be_copy_of_self
+
   # Find the active cap and redistribute option for this portfolio
   def active_cap_and_redistribute_option
     cap_and_redistribute_options.active.first
@@ -138,5 +140,13 @@ class Portfolio < ApplicationRecord
 
     output << "=" * 80
     output.join("\n")
+  end
+
+  private
+
+  def cannot_be_copy_of_self
+    if copy_of_id.present? && copy_of_id == id
+      errors.add(:copy_of, "cannot reference itself")
+    end
   end
 end
