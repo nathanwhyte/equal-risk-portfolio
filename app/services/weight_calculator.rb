@@ -19,23 +19,23 @@ class WeightCalculator
   attr_reader :weights, :allocations
 
   def enabled_allocation_sum
-    allocations.sum do |_name, allocation_data|
-      allocation = normalize_allocation(allocation_data)
-      allocation[:enabled] ? (allocation[:weight].to_f / 100.0) : 0
-    end
-  end
+    return 0.0 if allocations.blank?
 
-  def normalize_allocation(value)
-    if value.is_a?(Hash)
-      {
-        weight: value["weight"] || value[:weight] || value.to_f,
-        enabled: value.fetch("enabled", value.fetch(:enabled, true)) != false
-      }
+    # Handle both ActiveRecord associations and hash/array inputs
+    if allocations.respond_to?(:sum)
+      # ActiveRecord association or array
+      allocations.sum do |allocation|
+        if allocation.is_a?(Allocation)
+          allocation.enabled ? (allocation.percentage.to_f / 100.0) : 0
+        elsif allocation.is_a?(Hash)
+          # Support hash format for backward compatibility
+          (allocation[:enabled] || allocation["enabled"]) ? ((allocation[:percentage] || allocation["percentage"]).to_f / 100.0) : 0
+        else
+          0
+        end
+      end
     else
-      {
-        weight: value.to_f,
-        enabled: true
-      }
+      0.0
     end
   end
 end

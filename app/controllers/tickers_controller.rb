@@ -1,4 +1,8 @@
+require "ostruct"
+
 class TickersController < ApplicationController
+  before_action :set_portfolio
+
   def replace
     @ticker = Ticker.new(ticker_params)
 
@@ -13,7 +17,7 @@ class TickersController < ApplicationController
     if check_cached_ticker
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.replace("ticker_#{@ticker.symbol}", partial: "tickers/ticker", locals: { ticker: @ticker })
+          render turbo_stream: turbo_stream.replace("ticker_#{@ticker.symbol}", partial: "tickers/ticker", locals: { ticker: @ticker, portfolio: @portfolio })
         end
       end
     else
@@ -51,6 +55,15 @@ class TickersController < ApplicationController
 
   private
 
+  def set_portfolio
+    # Create a portfolio object for rendering purposes
+    # It doesn't need to be persisted, just needs the id and copy_of_id attributes
+    @portfolio = OpenStruct.new(
+      id: portfolio_id_param,
+      copy_of_id: copy_of_id_param
+    )
+  end
+
   def ticker_params
     params.expect(ticker: [ :symbol, :name ])
   end
@@ -59,8 +72,26 @@ class TickersController < ApplicationController
     params[:portfolio_id].presence
   end
 
+  def copy_of_id_param
+    params[:copy_of_id].presence
+  end
+
+  def cache_mode
+    if portfolio_id_param
+      :edit
+    elsif copy_of_id_param
+      :new_copy
+    else
+      :new
+    end
+  end
+
   def check_cached_ticker
-    tickers = cached_tickers(portfolio_id_param)
+    tickers = cached_tickers(
+      mode: cache_mode,
+      portfolio_id: portfolio_id_param,
+      original_portfolio_id: copy_of_id_param
+    )
 
     if tickers.nil? || tickers.empty?
       return false
@@ -70,25 +101,43 @@ class TickersController < ApplicationController
   end
 
   def add_cached_ticker
-    tickers = cached_tickers(portfolio_id_param)
+    tickers = cached_tickers(
+      mode: cache_mode,
+      portfolio_id: portfolio_id_param,
+      original_portfolio_id: copy_of_id_param
+    )
 
     unless tickers.any? { |t| t.symbol == @ticker.symbol }
       tickers << Ticker.new(symbol: @ticker.symbol, name: @ticker.name)
     end
 
-    write_cached_tickers(tickers, portfolio_id_param)
+    write_cached_tickers(
+      tickers,
+      mode: cache_mode,
+      portfolio_id: portfolio_id_param,
+      original_portfolio_id: copy_of_id_param
+    )
 
     @count = tickers.length
   end
 
   def remove_cached_ticker
-    tickers = cached_tickers(portfolio_id_param)
+    tickers = cached_tickers(
+      mode: cache_mode,
+      portfolio_id: portfolio_id_param,
+      original_portfolio_id: copy_of_id_param
+    )
 
     ticker_to_remove = tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
 
     if ticker_to_remove
       tickers.delete(ticker_to_remove)
-      write_cached_tickers(tickers, portfolio_id_param)
+      write_cached_tickers(
+        tickers,
+        mode: cache_mode,
+        portfolio_id: portfolio_id_param,
+        original_portfolio_id: copy_of_id_param
+      )
     end
 
     @count = tickers.length

@@ -1,6 +1,74 @@
 <div>
-  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute</div>
+  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute Options</div>
 
+  <div class="flex flex-wrap gap-4 items-center pt-2">
+    <% if portfolio.cap_and_redistribute_options.present? %>
+      <% portfolio.cap_and_redistribute_options.each do |option| %>
+        <% disabled_class = option.active ? "bg-base-100" : "opacity-50 bg-base-300"
+        toggle_button_class = cap_and_redistribute_toggle_class(option.active) %>
+        <div
+          class="flex gap-6 items-center p-2 max-w-xs border shadow-sm  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
+        >
+          <div class="flex justify-between items-center w-full">
+            <div class="block shrink truncate">
+              <p class="text-sm font-semibold">Cap:
+                <%= format_percentage(option.cap_percentage * 100) %>%</p>
+              <p class="text-xs text-base-content/60">Top N:
+                <%= option.top_n %></p>
+            </div>
+          </div>
+          <div class="flex gap-2 items-center">
+            <%= button_to option.active ? "Active" : "View",
+            portfolio_path(portfolio),
+            method: :patch,
+            params: {
+              toggle_cap_and_redistribute_option: option.id,
+              update_cap_and_redistribute_options: "true",
+            },
+            class: toggle_button_class %>
+
+            <%= button_to "Remove",
+            portfolio_path(portfolio),
+            method: :patch,
+            params: {
+              remove_cap_and_redistribute_option: option.id,
+              update_cap_and_redistribute_options: "true",
+            },
+            data: {
+              turbo_confirm: "Are you sure you want to remove this option?",
+            },
+            class: "btn btn-error btn-soft btn-xs" %>
+          </div>
+        </div>
+      <% end %>
+
+      <div
+        class="tooltip"
+        data-tip="Disables any active cap and redistribute options and shows the base portfolio."
+      >
+        <%= button_to "View Base Portfolio",
+        portfolio_path(portfolio),
+        method: :patch,
+        params: {
+          clear_cap_and_redistribute_options: "true",
+          update_cap_and_redistribute_options: "true",
+        },
+        class: "btn btn-xs" %>
+      </div>
+    <% else %>
+      <p class="text-sm italic text-base-content/25">No cap and redistribute options added yet.</p>
+    <% end %>
+  </div>
+  <div class="pt-4 font-semibold text-base-content/75">Create a Cap and Redistribute View</div>
+  <% if portfolio.errors[:cap_and_redistribute_options].any? %>
+    <div class="pt-2 alert alert-error">
+      <ul class="list-disc list-inside">
+        <% portfolio.errors[:cap_and_redistribute_options].each do |error| %>
+          <li><%= error %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
   <p class="pt-2 pb-1 text-xs text-base-content/50">
     <span class="font-semibold">
       Cap
@@ -14,10 +82,6 @@
     the excess weight percentage from the cap to the top
     <i>N</i>
     stocks based on prior-year performance.
-  </p>
-  <p class="pb-1 text-xs text-base-content/50">
-    Options are
-    <u>always applied to the base version of the portfolio.</u>
   </p>
 
   <%= form_with(model: portfolio, url: portfolio_path(portfolio), method: :patch) do |cap_redistribute_form| %>
@@ -35,20 +99,18 @@
                                          placeholder: "Top N stocks, e.g. \"3\"",
                                          class: "input input-sm",
                                          step: 1,
-                                         min: 0,
+                                         min: 1,
                                          max: [
-                                           portfolio.tickers&.length.to_i - 1,
-                                           0,
+                                           Array(portfolio.current_tickers).length,
+                                           1,
                                          ].max %>
 
-      <%= cap_redistribute_form.hidden_field :cap_and_redistribute, value: "true" %>
+      <%= cap_redistribute_form.hidden_field :update_cap_and_redistribute_options,
+                                         value: "true" %>
 
       <div>
-        <%= cap_redistribute_form.submit "Apply", class: "btn btn-soft btn-success btn-xs" %>
+        <%= cap_redistribute_form.submit "Create", class: "btn btn-soft btn-success btn-xs" %>
       </div>
     </div>
   <% end %>
-  <p class="pt-2 text-xs font-medium text-base-content/50">
-    <span class="font-bold">NOTE</span>: Applying these settings will create a new portfolio version with the
-    changes.</p>
 </div>

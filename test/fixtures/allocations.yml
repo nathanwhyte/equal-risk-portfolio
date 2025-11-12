@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+cash_allocation:
+  portfolio: one
+  name: Cash
+  percentage: 20.0
+  enabled: true
+
+bonds_allocation:
+  portfolio: one
+  name: Bonds
+  percentage: 30.0
+  enabled: true
+
+disabled_allocation:
+  portfolio: two
+  name: Cash
+  percentage: 20.0
+  enabled: false

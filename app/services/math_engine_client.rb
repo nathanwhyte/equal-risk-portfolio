@@ -17,7 +17,7 @@ class MathEngineClient
       top_n: top_n
     }.to_json
 
-    Rails.logger.info "\n\nCalling math engine with body: #{body}\n\n"
+    Rails.logger.info "\nCalling math engine with body: #{body}\n"
 
     response = http_client.post(
       "#{base_url}#{CALCULATE_PATH}",
@@ -27,7 +27,7 @@ class MathEngineClient
 
     raise Error, "Math engine request failed with status #{response.code}" unless response.success?
 
-    Rails.logger.info "\n\nResponse from math engine: #{response.parsed_response}\n\n"
+    Rails.logger.info "Response from math engine: #{response.parsed_response}\n"
 
     parse_weights(response.parsed_response)
   rescue Error
@@ -48,7 +48,17 @@ class MathEngineClient
     weights = {}
 
     payload.fetch("weights").each do |pair|
-      weights[pair.fetch("ticker")] = pair.fetch("weight").to_f
+      weight_value = pair.fetch("weight")
+      # Handle both percentage strings (e.g., "23.00%") and decimal numbers
+      if weight_value.is_a?(String) && weight_value.end_with?("%")
+        # Convert percentage string to decimal (e.g., "23.00%" -> 0.23)
+        weights[pair.fetch("ticker")] = weight_value.chomp("%").to_f / 100.0
+      else
+        # Already a decimal number or numeric string
+        decimal_value = weight_value.to_f
+        # If value is > 1, assume it's a percentage and convert to decimal
+        weights[pair.fetch("ticker")] = decimal_value > 1.0 ? decimal_value / 100.0 : decimal_value
+      end
     end
 
     weights

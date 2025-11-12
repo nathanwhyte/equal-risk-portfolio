@@ -8,5 +8,6 @@ def system!(*args)
 end
 
 FileUtils.chdir APP_ROOT do
-  system! "bin/rails db:test:prepare test test:system"
+  system! "bin/fmt"
+  system! "bin/rails test"
 end

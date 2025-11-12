@@ -1,0 +1,15 @@
+<% content_for :title, "Create a Copy" %>
+
+<div class="pt-4 text-sm text-base-content/75">
+  &larr;
+  <%= link_to "Back to Portfolio Overview",
+  @original_portfolio,
+  class: "link link-hover" %>
+</div>
+
+<h1 class="pt-4 text-3xl font-semibold">
+  Create a Copy of
+  <span class="px-0.5 text-accent"><%= @original_portfolio.name %></span>
+</h1>
+
+<%= render "form", portfolio: @copy_portfolio %>

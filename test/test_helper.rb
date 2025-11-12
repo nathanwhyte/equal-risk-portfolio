@@ -2,6 +2,8 @@ ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
 require_relative "test_helpers/session_test_helper"
+require_relative "test_helpers/portfolio_test_helper"
+require_relative "test_helpers/route_test_helper"
 require "webmock/minitest"
 
 # Allow connections to localhost for Selenium/Capybara
@@ -15,11 +17,15 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    # Include test helpers
+    include PortfolioTestHelper
+
     # Add more helper methods to be used by all tests here...
   end
 end
 
-# Ensure integration tests have access to the SignedCookieAccessor
+# Ensure integration tests have access to the SignedCookieAccessor and route helpers
 ActiveSupport.on_load(:action_dispatch_integration_test) do
   include SessionTestHelper
+  include RouteTestHelper
 end

@@ -14,7 +14,7 @@ if Rails.env.development?
     u.password_confirmation = "unix"
   end
 
-  portfolio = Portfolio.find_or_create_by!(name: "Tech Leaders") do |p|
+  Portfolio.find_or_create_by!(name: "Tech Leaders") do |p|
     p.tickers = [
       { symbol: "AAPL", name: "Apple Inc." },
       { symbol: "MSFT", name: "Microsoft Corporation" },
@@ -25,14 +25,7 @@ if Rails.env.development?
       "MSFT" => 33.3,
       "GOOGL" => 33.4
     }
-    p.allocations = {
-      "Bonds" => {
-        "weight" => 5.0,
-        "enabled" => false
-      }
-    }
   end
-  portfolio.create_initial_version unless portfolio.portfolio_versions.any?
 
   portfolio = Portfolio.find_or_create_by!(name: "Diversified Blue Chips") do |p|
     p.tickers = [
@@ -47,16 +40,10 @@ if Rails.env.development?
       "PG" => 25.0,
       "XOM" => 25.0
     }
-    p.allocations = {
-      "Bonds" => {
-        "weight" => 20.0,
-        "enabled" => true
-      }
-    }
   end
-  portfolio.create_initial_version unless portfolio.portfolio_versions.any?
+  portfolio.allocations.create!(name: "Bonds", percentage: 20.0, enabled: false) if portfolio.allocations.empty?
 
-  portfolio = Portfolio.find_or_create_by!(name: "Growth Stocks") do |p|
+  Portfolio.find_or_create_by!(name: "Growth Stocks") do |p|
     p.tickers = [
       { symbol: "AMZN", name: "Amazon.com Inc." },
       { symbol: "TSLA", name: "Tesla, Inc." },
@@ -68,5 +55,4 @@ if Rails.env.development?
       "NVDA" => 33.4
     }
   end
-  portfolio.create_initial_version unless portfolio.portfolio_versions.any?
 end

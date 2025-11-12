@@ -3,41 +3,27 @@
 
   <div class="flex flex-wrap gap-4 pt-2">
     <% if portfolio.allocations.present? %>
-      <% portfolio.allocations.each do |name, allocation_data| %>
-        <% if allocation_data.is_a?(Hash)
-          weight = allocation_data["weight"] || allocation_data[:weight] || 0
-          enabled =
-            if allocation_data.key?("enabled")
-              allocation_data["enabled"] == true
-            elsif allocation_data.key?(:enabled)
-              allocation_data[:enabled] == true
-            else
-              true
-            end
-        else
-          weight = allocation_data.to_f
-          enabled = true
-        end
-        disabled_class = enabled ? "" : "opacity-50 bg-base-300"
-        toggle_button_class = allocation_toggle_class(enabled) %>
+      <% portfolio.allocations.each do |allocation| %>
+        <% disabled_class = allocation.enabled ? "" : "opacity-50 bg-base-300"
+        toggle_button_class = allocation_toggle_class(allocation.enabled) %>
         <div
-          class="flex gap-6 items-center p-2 max-w-xs border shadow-md  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
+          class="flex gap-6 items-center p-2 max-w-xs border shadow-sm  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
         >
           <div class="flex justify-between items-center w-full">
             <div class="block shrink truncate">
-              <p class="text-lg font-bold"><%= name %></p>
+              <p class="text-lg font-bold"><%= allocation.name %></p>
             </div>
 
             <div class="pr-2 pl-3 font-bold text-center text-primary">
-              <%= format_percentage(weight) %>%
+              <%= format_percentage(allocation.percentage) %>%
             </div>
           </div>
           <div class="flex gap-2 items-center">
-            <%= button_to enabled ? "Disable" : "Enable",
+            <%= button_to allocation.enabled ? "Disable" : "Enable",
             portfolio_path(portfolio),
             method: :patch,
             params: {
-              toggle_allocation: name,
+              toggle_allocation: allocation.id,
               update_allocations: "true",
             },
             class: toggle_button_class %>
@@ -46,8 +32,11 @@
             portfolio_path(portfolio),
             method: :patch,
             params: {
-              remove_allocation: name,
+              remove_allocation: allocation.id,
               update_allocations: "true",
+            },
+            data: {
+              turbo_confirm: "Are you sure you want to remove this allocation?",
             },
             class: "btn btn-error btn-soft btn-xs" %>
           </div>
@@ -72,7 +61,7 @@
       </div>
     <% end %>
 
-    <div class="pt-6 pb-2 font-semibold text-base-content/75">Create an Allocation</div>
+    <div class="pt-4 pb-2 font-semibold text-base-content/75">Create an Allocation</div>
     <p class="flex flex-col gap-4 pb-1 text-xs text-base-content/50">
       Each allocation will simulate reserving a percentage of the portfolio's
       total value to assets separate from the equal risk stocks.
@@ -84,16 +73,14 @@
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
       <%= form.text_field :allocation_name,
                       placeholder: "Allocation name, e.g. \"Bonds\"",
-                      class: "input input-sm",
-                      name: "allocation_name" %>
+                      class: "input input-sm" %>
       <%= form.number_field :allocation_weight,
                         placeholder: "Weight %",
                         class: "input input-sm",
-                        name: "allocation_weight",
                         step: 0.01,
                         min: 0,
                         max: 100 %>
-      <%= hidden_field_tag :update_allocations, "true" %>
+      <%= form.hidden_field :update_allocations, value: "true" %>
 
       <div>
         <%= form.submit "Create", class: "btn btn-soft btn-success btn-xs" %>
