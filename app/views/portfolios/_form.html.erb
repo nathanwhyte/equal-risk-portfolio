@@ -1,7 +1,11 @@
 <h2 class="pt-4 pb-2 text-xl font-semibold">Tickers</h2>
 
 <%= form_with url: "/tickers/search" do |f| %>
-  <%= hidden_field_tag :portfolio_id, portfolio.id %>
+  <% if portfolio.id.present? %>
+    <%= hidden_field_tag :portfolio_id, portfolio.id %>
+  <% elsif portfolio.copy_of_id.present? %>
+    <%= hidden_field_tag :copy_of_id, portfolio.copy_of_id %>
+  <% end %>
   <%= f.text_field :query,
                placeholder: "Search by ticker or company name",
                autocomplete: "off",
@@ -19,7 +23,13 @@
 <p class="text-sm text-base-content/50">Use the search to add tickers to your portfolio.</p>
 
 <div id="tickers" class="flex flex-wrap gap-4 pt-4">
-  <%= render partial: "tickers/ticker", collection: @tickers %>
+  <% @tickers.each do |ticker| %>
+    <%= render partial: "tickers/ticker",
+    locals: {
+      ticker: ticker,
+      portfolio: portfolio,
+    } %>
+  <% end %>
 </div>
 
 <div id="count" class="px-2 pt-4">

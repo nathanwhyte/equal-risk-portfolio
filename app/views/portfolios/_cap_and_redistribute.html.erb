@@ -60,6 +60,15 @@
     <% end %>
   </div>
   <div class="pt-4 font-semibold text-base-content/75">Create a Cap and Redistribute View</div>
+  <% if portfolio.errors[:cap_and_redistribute_options].any? %>
+    <div class="pt-2 alert alert-error">
+      <ul class="list-disc list-inside">
+        <% portfolio.errors[:cap_and_redistribute_options].each do |error| %>
+          <li><%= error %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
   <p class="pt-2 pb-1 text-xs text-base-content/50">
     <span class="font-semibold">
       Cap
@@ -100,13 +109,8 @@
                                          value: "true" %>
 
       <div>
-        <%= cap_redistribute_form.submit "Add Option",
-                                     class: "btn btn-soft btn-success btn-xs" %>
+        <%= cap_redistribute_form.submit "Create", class: "btn btn-soft btn-success btn-xs" %>
       </div>
     </div>
   <% end %>
-  <p class="pt-2 text-xs font-medium text-base-content/50">
-    <span class="font-bold">NOTE</span>: Adding an option saves it for later use. To apply cap and redistribute
-    settings, use the "Apply" button which will create a new portfolio
-    version.</p>
 </div>

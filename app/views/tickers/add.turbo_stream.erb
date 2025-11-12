@@ -1,5 +1,9 @@
 <%= turbo_stream.append "tickers" do %>
-  <%= render partial: "tickers/ticker", locals: { ticker: @ticker } %>
+  <%= render partial: "tickers/ticker",
+  locals: {
+    ticker: @ticker,
+    portfolio: @portfolio,
+  } %>
 <% end %>
 
 <%= turbo_stream.update "count" do %>

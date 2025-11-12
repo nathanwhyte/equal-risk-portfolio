@@ -1,4 +1,8 @@
+require "ostruct"
+
 class TickersController < ApplicationController
+  before_action :set_portfolio
+
   def replace
     @ticker = Ticker.new(ticker_params)
 
@@ -13,7 +17,7 @@ class TickersController < ApplicationController
     if check_cached_ticker
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.replace("ticker_#{@ticker.symbol}", partial: "tickers/ticker", locals: { ticker: @ticker })
+          render turbo_stream: turbo_stream.replace("ticker_#{@ticker.symbol}", partial: "tickers/ticker", locals: { ticker: @ticker, portfolio: @portfolio })
         end
       end
     else
@@ -50,6 +54,15 @@ class TickersController < ApplicationController
   end
 
   private
+
+  def set_portfolio
+    # Create a portfolio object for rendering purposes
+    # It doesn't need to be persisted, just needs the id and copy_of_id attributes
+    @portfolio = OpenStruct.new(
+      id: portfolio_id_param,
+      copy_of_id: copy_of_id_param
+    )
+  end
 
   def ticker_params
     params.expect(ticker: [ :symbol, :name ])

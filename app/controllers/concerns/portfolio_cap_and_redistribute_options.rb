@@ -74,8 +74,17 @@ module PortfolioCapAndRedistributeOptions
   end
 
   def add_cap_and_redistribute_option
-    cap_percentage = get_param(:cap_percentage).to_f
-    top_n = get_param(:top_n).to_i
+    cap_percentage_param = get_param(:cap_percentage)
+    top_n_param = get_param(:top_n)
+
+    # Validate that both fields are present and not empty
+    if cap_percentage_param.blank? || top_n_param.blank?
+      @portfolio.errors.add(:cap_and_redistribute_options, "Cap percentage and Top N are required")
+      return
+    end
+
+    cap_percentage = cap_percentage_param.to_f
+    top_n = top_n_param.to_i
 
     if cap_percentage <= 0 || cap_percentage > 100
       @portfolio.errors.add(:cap_and_redistribute_options, "Cap percentage must be between 0 and 100")
@@ -185,5 +194,9 @@ module PortfolioCapAndRedistributeOptions
 
       new_option
     end
+  end
+
+  def math_engine_client
+    @math_engine_client ||= MathEngineClient.new
   end
 end

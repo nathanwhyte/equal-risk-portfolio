@@ -13,7 +13,8 @@
         symbol: ticker.symbol,
         name: ticker.name,
       },
-      portfolio_id: @portfolio&.id,
+      portfolio_id: portfolio&.id,
+      copy_of_id: portfolio&.copy_of_id,
     },
     class: "btn btn-error btn-soft btn-xs" %>
   </div>

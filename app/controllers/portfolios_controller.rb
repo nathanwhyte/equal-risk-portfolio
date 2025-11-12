@@ -151,7 +151,6 @@ class PortfoliosController < ApplicationController
 
     Rails.logger.info "\nUpdating Portfolio (#{params})\n"
 
-    # Handle applying cap and redistribute (creates a new version)
     if params[:cap_and_redistribute] == "true" || params.dig(:portfolio, :cap_and_redistribute) == "true"
       cap_percentage = params.dig(:portfolio, :cap_percentage).to_f
       top_n = params.dig(:portfolio, :top_n).to_i
