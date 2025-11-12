@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_11_174506) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_12_171936) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -75,8 +75,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_11_174506) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
-  add_foreign_key "allocations", "portfolios"
-  add_foreign_key "cap_and_redistribute_options", "portfolios"
-  add_foreign_key "portfolios", "portfolios", column: "copy_of_id"
+  add_foreign_key "allocations", "portfolios", on_delete: :cascade
+  add_foreign_key "cap_and_redistribute_options", "portfolios", on_delete: :cascade
+  add_foreign_key "portfolios", "portfolios", column: "copy_of_id", on_delete: :nullify
   add_foreign_key "sessions", "users"
 end
