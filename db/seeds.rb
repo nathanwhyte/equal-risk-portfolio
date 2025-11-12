@@ -55,4 +55,14 @@ if Rails.env.development?
       "NVDA" => 33.4
     }
   end
+
+  # Create a copy of Tech Leaders portfolio
+  tech_leaders = Portfolio.find_by(name: "Tech Leaders")
+  if tech_leaders
+    Portfolio.find_or_create_by!(name: "Tech Leaders Copy") do |p|
+      p.copy_of = tech_leaders
+      p.tickers = tech_leaders.tickers
+      p.weights = tech_leaders.weights
+    end
+  end
 end
