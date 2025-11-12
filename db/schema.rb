@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_11_233237) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_11_174506) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -19,15 +19,17 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_11_233237) do
     t.datetime "created_at", null: false
     t.boolean "enabled", default: true, null: false
     t.string "name", null: false
-    t.float "percentage", null: false
+    t.decimal "percentage", precision: 5, scale: 2, null: false
     t.uuid "portfolio_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["portfolio_id", "name"], name: "index_allocations_on_portfolio_id_and_name", unique: true
     t.index ["portfolio_id"], name: "index_allocations_on_portfolio_id"
+    t.check_constraint "percentage > 0::numeric AND percentage <= 100::numeric", name: "allocations_percentage_range"
   end
 
   create_table "cap_and_redistribute_options", force: :cascade do |t|
     t.boolean "active", default: false, null: false
-    t.float "cap_percentage", null: false
+    t.decimal "cap_percentage", precision: 4, scale: 3, null: false
     t.datetime "created_at", null: false
     t.uuid "portfolio_id", null: false
     t.integer "top_n", null: false
@@ -35,6 +37,8 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_11_233237) do
     t.jsonb "weights", default: {}, null: false
     t.index ["portfolio_id"], name: "index_cap_and_redistribute_options_on_portfolio_id"
     t.index ["weights"], name: "index_cap_and_redistribute_options_on_weights_gin", using: :gin
+    t.check_constraint "cap_percentage > 0::numeric AND cap_percentage <= 1::numeric", name: "cap_percentage_range"
+    t.check_constraint "top_n > 0", name: "top_n_positive"
   end
 
   create_table "close_prices", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -45,7 +49,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_11_233237) do
   end
 
   create_table "portfolios", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.jsonb "allocations"
     t.uuid "copy_of_id"
     t.datetime "created_at", null: false
     t.string "name"

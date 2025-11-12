@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateUsers < ActiveRecord::Migration[8.1]
   def change
     create_table :users, id: :uuid do |t|
@@ -6,6 +8,7 @@ class CreateUsers < ActiveRecord::Migration[8.1]
 
       t.timestamps
     end
+
     add_index :users, :email_address, unique: true
   end
 end
