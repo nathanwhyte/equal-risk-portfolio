@@ -44,7 +44,7 @@ class PortfoliosController < ApplicationController
   end
 
   def new_copy
-    @original_portfolio = Portfolio.find(params[:id])
+    @original_portfolio = Portfolio.includes(:allocations, :cap_and_redistribute_options).find(params[:id])
 
     write_cached_tickers(
       tickers_from_hash(@original_portfolio.tickers),
@@ -98,7 +98,7 @@ class PortfoliosController < ApplicationController
     @portfolio.tickers = tickers_hash
 
     if params[:copy_of_id].present?
-      original_portfolio = Portfolio.find_by(id: params[:copy_of_id])
+      original_portfolio = Portfolio.includes(:allocations, :cap_and_redistribute_options).find_by(id: params[:copy_of_id])
       if original_portfolio
         @portfolio.copy_of = original_portfolio
         @portfolio.allocations = copy_allocations_from(original_portfolio)
