@@ -59,8 +59,26 @@ class TickersController < ApplicationController
     params[:portfolio_id].presence
   end
 
+  def copy_of_id_param
+    params[:copy_of_id].presence
+  end
+
+  def cache_mode
+    if portfolio_id_param
+      :edit
+    elsif copy_of_id_param
+      :new_copy
+    else
+      :new
+    end
+  end
+
   def check_cached_ticker
-    tickers = cached_tickers(portfolio_id_param)
+    tickers = cached_tickers(
+      mode: cache_mode,
+      portfolio_id: portfolio_id_param,
+      original_portfolio_id: copy_of_id_param
+    )
 
     if tickers.nil? || tickers.empty?
       return false
@@ -70,25 +88,43 @@ class TickersController < ApplicationController
   end
 
   def add_cached_ticker
-    tickers = cached_tickers(portfolio_id_param)
+    tickers = cached_tickers(
+      mode: cache_mode,
+      portfolio_id: portfolio_id_param,
+      original_portfolio_id: copy_of_id_param
+    )
 
     unless tickers.any? { |t| t.symbol == @ticker.symbol }
       tickers << Ticker.new(symbol: @ticker.symbol, name: @ticker.name)
     end
 
-    write_cached_tickers(tickers, portfolio_id_param)
+    write_cached_tickers(
+      tickers,
+      mode: cache_mode,
+      portfolio_id: portfolio_id_param,
+      original_portfolio_id: copy_of_id_param
+    )
 
     @count = tickers.length
   end
 
   def remove_cached_ticker
-    tickers = cached_tickers(portfolio_id_param)
+    tickers = cached_tickers(
+      mode: cache_mode,
+      portfolio_id: portfolio_id_param,
+      original_portfolio_id: copy_of_id_param
+    )
 
     ticker_to_remove = tickers.find { |ticker| ticker.symbol == ticker_params[:symbol] }
 
     if ticker_to_remove
       tickers.delete(ticker_to_remove)
-      write_cached_tickers(tickers, portfolio_id_param)
+      write_cached_tickers(
+        tickers,
+        mode: cache_mode,
+        portfolio_id: portfolio_id_param,
+        original_portfolio_id: copy_of_id_param
+      )
     end
 
     @count = tickers.length

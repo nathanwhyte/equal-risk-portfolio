@@ -39,17 +39,21 @@ class PortfoliosController < ApplicationController
 
   def new
     @portfolio = Portfolio.new
-    @tickers = cached_tickers
-    @count = cached_tickers.length
+    @tickers = cached_tickers(mode: :new)
+    @count = cached_tickers(mode: :new).length
   end
 
   def new_copy
     @original_portfolio = Portfolio.find(params[:id])
 
-    write_cached_tickers(tickers_from_hash(@original_portfolio.tickers))
+    write_cached_tickers(
+      tickers_from_hash(@original_portfolio.tickers),
+      mode: :new_copy,
+      original_portfolio_id: @original_portfolio.id
+    )
 
-    @tickers = cached_tickers
-    @count = cached_tickers.length
+    @tickers = cached_tickers(mode: :new_copy, original_portfolio_id: @original_portfolio.id)
+    @count = cached_tickers(mode: :new_copy, original_portfolio_id: @original_portfolio.id).length
     @copy_portfolio = Portfolio.new(
       copy_of_id: @original_portfolio.id,
       name: "Copy of #{@original_portfolio.name}"
@@ -60,15 +64,20 @@ class PortfoliosController < ApplicationController
     @portfolio = Portfolio.new
 
     @portfolio.name = params[:portfolio][:name]
-    tickers = cached_tickers
+
+    # Determine cache mode based on whether this is a copy
+    cache_mode = params[:copy_of_id].present? ? :new_copy : :new
+    original_portfolio_id = params[:copy_of_id]
+
+    tickers = cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id)
     ticker_symbols = tickers.map(&:symbol)
     tickers_hash = tickers_to_hash(tickers)
 
     if ticker_symbols.length <= 0
       @portfolio.errors.add(:tickers, "must include at least one ticker")
-      @tickers = cached_tickers
-      @count = cached_tickers.length
-      render :new, status: :unprocessable_entity
+      @tickers = cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id)
+      @count = cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id).length
+      render cache_mode == :new_copy ? :new_copy : :new, status: :unprocessable_entity
       return
     end
 
@@ -79,9 +88,9 @@ class PortfoliosController < ApplicationController
     rescue MathEngineClient::Error => e
       Rails.logger.error "API call failed: #{e.message}"
       @portfolio.errors.add(:base, "There was a problem creating the portfolio. Please try again.")
-      @tickers = cached_tickers
-      @count = cached_tickers.length
-      render :new, status: :unprocessable_entity
+      @tickers = cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id)
+      @count = cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id).length
+      render cache_mode == :new_copy ? :new_copy : :new, status: :unprocessable_entity
       return
     end
 
@@ -105,19 +114,19 @@ class PortfoliosController < ApplicationController
       if @portfolio.save
         redirect_to @portfolio, notice: "Portfolio was successfully created."
       else
-        @tickers = cached_tickers
-        @count = cached_tickers.length
-        render :new, status: :unprocessable_entity
+        @tickers = cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id)
+        @count = cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id).length
+        render cache_mode == :new_copy ? :new_copy : :new, status: :unprocessable_entity
       end
     end
 
-    clear_cached_tickers
+    clear_cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id)
   end
 
   def edit
     # Load tickers from portfolio
     tickers = tickers_from_hash(@portfolio.tickers)
-    write_cached_tickers(tickers, @portfolio.id)
+    write_cached_tickers(tickers, mode: :edit, portfolio_id: @portfolio.id)
     @count = tickers.length
     @tickers = tickers
   end
@@ -160,7 +169,7 @@ class PortfoliosController < ApplicationController
     end
 
     # Handle regular portfolio updates from the edit page
-    tickers = cached_tickers(@portfolio.id)
+    tickers = cached_tickers(mode: :edit, portfolio_id: @portfolio.id)
     @portfolio.name = portfolio_params[:name]
 
     # Calculate new weights before transaction
@@ -192,7 +201,7 @@ class PortfoliosController < ApplicationController
       render :edit, status: :unprocessable_entity
     end
 
-    clear_cached_tickers(@portfolio.id)
+    clear_cached_tickers(mode: :edit, portfolio_id: @portfolio.id)
   end
 
   def destroy

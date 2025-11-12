@@ -17,7 +17,7 @@ class ApplicationControllerTest < ActionDispatch::IntegrationTest
     session_id = session[:session_id]
 
     expected_key = "tickers:new:#{session_id}"
-    actual_key = controller.send(:ticker_cache_key, nil)
+    actual_key = controller.send(:ticker_cache_key, mode: :new)
 
     assert_equal expected_key, actual_key
     assert_match(/^tickers:new:.+$/, actual_key)
@@ -31,7 +31,7 @@ class ApplicationControllerTest < ActionDispatch::IntegrationTest
     portfolio_id = @portfolio.id
 
     expected_key = "tickers:edit:#{session_id}:portfolio_#{portfolio_id}"
-    actual_key = controller.send(:ticker_cache_key, portfolio_id)
+    actual_key = controller.send(:ticker_cache_key, mode: :edit, portfolio_id: portfolio_id)
 
     assert_equal expected_key, actual_key
     assert_match(/^tickers:edit:.+:portfolio_.+$/, actual_key)
@@ -70,9 +70,9 @@ class ApplicationControllerTest < ActionDispatch::IntegrationTest
     controller = @controller
 
     tickers = [ Ticker.new(symbol: "AAPL", name: "Apple"), Ticker.new(symbol: "GOOGL", name: "Google") ]
-    controller.send(:write_cached_tickers, tickers, nil)
+    controller.send(:write_cached_tickers, tickers, mode: :new)
 
-    cached = controller.send(:cached_tickers, nil)
+    cached = controller.send(:cached_tickers, mode: :new)
     assert_equal 2, cached.length
     assert_equal "AAPL", cached[0].symbol
     assert_equal "GOOGL", cached[1].symbol
@@ -83,9 +83,9 @@ class ApplicationControllerTest < ActionDispatch::IntegrationTest
     controller = @controller
 
     tickers = [ Ticker.new(symbol: "MSFT", name: "Microsoft") ]
-    controller.send(:write_cached_tickers, tickers, @portfolio.id)
+    controller.send(:write_cached_tickers, tickers, mode: :edit, portfolio_id: @portfolio.id)
 
-    cached = controller.send(:cached_tickers, @portfolio.id)
+    cached = controller.send(:cached_tickers, mode: :edit, portfolio_id: @portfolio.id)
     assert_equal 1, cached.length
     assert_equal "MSFT", cached[0].symbol
   end
@@ -105,12 +105,12 @@ class ApplicationControllerTest < ActionDispatch::IntegrationTest
       tickers_one = [ Ticker.new(symbol: "AAPL", name: "Apple") ]
       tickers_two = [ Ticker.new(symbol: "GOOGL", name: "Google") ]
 
-      controller.send(:write_cached_tickers, tickers_one, @portfolio.id)
-      controller.send(:write_cached_tickers, tickers_two, portfolio_two.id)
+      controller.send(:write_cached_tickers, tickers_one, mode: :edit, portfolio_id: @portfolio.id)
+      controller.send(:write_cached_tickers, tickers_two, mode: :edit, portfolio_id: portfolio_two.id)
 
       # Verify isolation - each portfolio has its own cached data
-      cached_one = controller.send(:cached_tickers, @portfolio.id)
-      cached_two = controller.send(:cached_tickers, portfolio_two.id)
+      cached_one = controller.send(:cached_tickers, mode: :edit, portfolio_id: @portfolio.id)
+      cached_two = controller.send(:cached_tickers, mode: :edit, portfolio_id: portfolio_two.id)
 
       assert_equal 1, cached_one.length
       assert_equal "AAPL", cached_one[0].symbol
@@ -128,16 +128,16 @@ class ApplicationControllerTest < ActionDispatch::IntegrationTest
 
     # Write to new cache
     tickers = [ Ticker.new(symbol: "AAPL", name: "Apple") ]
-    controller.send(:write_cached_tickers, tickers, nil)
+    controller.send(:write_cached_tickers, tickers, mode: :new)
 
     # Verify it's there
-    assert_equal 1, controller.send(:cached_tickers, nil).length
+    assert_equal 1, controller.send(:cached_tickers, mode: :new).length
 
     # Clear it
-    controller.send(:clear_cached_tickers, nil)
+    controller.send(:clear_cached_tickers, mode: :new)
 
     # Verify it's gone
-    assert_equal 0, controller.send(:cached_tickers, nil).length
+    assert_equal 0, controller.send(:cached_tickers, mode: :new).length
   end
 
   test "clearing one portfolio cache does not affect another" do
@@ -155,17 +155,17 @@ class ApplicationControllerTest < ActionDispatch::IntegrationTest
       tickers_one = [ Ticker.new(symbol: "AAPL", name: "Apple") ]
       tickers_two = [ Ticker.new(symbol: "GOOGL", name: "Google") ]
 
-      controller.send(:write_cached_tickers, tickers_one, @portfolio.id)
-      controller.send(:write_cached_tickers, tickers_two, portfolio_two.id)
+      controller.send(:write_cached_tickers, tickers_one, mode: :edit, portfolio_id: @portfolio.id)
+      controller.send(:write_cached_tickers, tickers_two, mode: :edit, portfolio_id: portfolio_two.id)
 
       # Clear only portfolio one's cache
-      controller.send(:clear_cached_tickers, @portfolio.id)
+      controller.send(:clear_cached_tickers, mode: :edit, portfolio_id: @portfolio.id)
 
       # Verify portfolio one's cache is cleared
-      assert_equal 0, controller.send(:cached_tickers, @portfolio.id).length
+      assert_equal 0, controller.send(:cached_tickers, mode: :edit, portfolio_id: @portfolio.id).length
 
       # Verify portfolio two's cache is intact
-      cached_two = controller.send(:cached_tickers, portfolio_two.id)
+      cached_two = controller.send(:cached_tickers, mode: :edit, portfolio_id: portfolio_two.id)
       assert_equal 1, cached_two.length
       assert_equal "GOOGL", cached_two[0].symbol
     ensure
