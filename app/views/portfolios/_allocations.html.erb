@@ -5,7 +5,14 @@
     <% if portfolio.allocations.present? %>
       <% portfolio.allocations.each do |allocation| %>
         <% disabled_class = allocation.enabled ? "" : "opacity-50 bg-base-300"
-        toggle_button_class = allocation_toggle_class(allocation.enabled) %>
+        toggle_button_class =
+          (
+            if allocation.enabled
+              "btn btn-xs btn-ghost"
+            else
+              "btn btn-xs btn-success btn-soft"
+            end
+          ) %>
         <div
           class="flex gap-6 items-center p-2 max-w-xs border shadow-sm  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
         >
