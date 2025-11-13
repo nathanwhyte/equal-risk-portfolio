@@ -1,5 +1,9 @@
 <div>
-  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute</div>
+  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute
+    <% if @portfolio.cap_and_redistribute_options.present? && @portfolio.cap_and_redistribute_options.any?(&:active) %>
+      <span class="ml-2 font-medium badge badge-sm badge-warning">Active</span>
+    <% end %>
+  </div>
 
   <div class="flex flex-wrap gap-4 items-center pt-2">
     <% if portfolio.cap_and_redistribute_options.present? %>
