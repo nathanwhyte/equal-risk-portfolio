@@ -41,11 +41,5 @@ class CapAndRedistributeOption < ApplicationRecord
         return
       end
     end
-
-    # Check if weights sum to approximately 1.0 (with tolerance for floating point)
-    total = weights.values.sum
-    unless (total - 1.0).abs < 0.01
-      errors.add(:weights, "must sum to approximately 1.0 (currently #{total.round(4)})")
-    end
   end
 end

@@ -1,20 +1,29 @@
 <div>
-  <div class="text-lg font-semibold text-base-content/75">Portfolio Allocations</div>
+  <div class="text-lg font-semibold text-base-content/75">Portfolio Allocations
+    <% if @portfolio.allocations.present? && @portfolio.allocations.any?(&:enabled) %>
+      <span class="ml-2 font-medium badge badge-sm badge-warning">
+        <%= pluralize(@portfolio.allocations.select(&:enabled).count, "Active Allocation") %>
+      </span>
+    <% else %>
+      <span class="ml-2 font-medium badge badge-neutral badge-sm">No Allocations Applied</span>
+    <% end %>
+  </div>
 
   <div class="flex flex-wrap gap-4 pt-2">
     <% if portfolio.allocations.present? %>
       <% portfolio.allocations.each do |allocation| %>
-        <% disabled_class = allocation.enabled ? "" : "opacity-50 bg-base-300"
-        toggle_button_class = allocation_toggle_class(allocation.enabled) %>
+        <% disabled_class = allocation.enabled ? "" : "opacity-50 bg-base-300" %>
+        <% toggle_button_class =
+          allocation.enabled ? "btn btn-xs btn-ghost" : "btn btn-xs btn-accent btn-soft" %>
         <div
           class="flex gap-6 items-center p-2 max-w-xs border shadow-sm  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
         >
           <div class="flex justify-between items-center w-full">
             <div class="block shrink truncate">
-              <p class="text-lg font-bold"><%= allocation.name %></p>
+              <span class="font-semibold"><%= allocation.name %></span>
             </div>
 
-            <div class="pr-2 pl-3 font-bold text-center text-primary">
+            <div class="pr-2 pl-3 font-semibold text-center text-primary">
               <%= format_percentage(allocation.percentage) %>%
             </div>
           </div>
@@ -28,7 +37,7 @@
             },
             class: toggle_button_class %>
 
-            <%= button_to "Remove",
+            <%= button_to "Delete",
             portfolio_path(portfolio),
             method: :patch,
             params: {
@@ -61,7 +70,7 @@
       </div>
     <% end %>
 
-    <div class="pt-4 pb-2 font-semibold text-base-content/75">Create an Allocation</div>
+    <div class="pt-6 pb-2 text-sm font-semibold text-base-content/75">Create an Allocation</div>
     <p class="flex flex-col gap-4 pb-1 text-xs text-base-content/50">
       Each allocation will simulate reserving a percentage of the portfolio's
       total value to assets separate from the equal risk stocks.
@@ -87,4 +96,13 @@
       </div>
     </div>
   <% end %>
+
+  <p class="pt-3 text-xs text-base-content/50">
+    Allocation percentage adjustments are applied in addition to any existing
+    <span class="font-semibold">"Cap and Redistribute"</span>
+    views.
+  </p>
+  <p class="pt-1 text-xs text-base-content/50">
+    Underlying portfolio weights are not modified.
+  </p>
 </div>

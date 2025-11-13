@@ -42,6 +42,12 @@ if Rails.env.development?
     }
   end
   portfolio.allocations.create!(name: "Bonds", percentage: 20.0, enabled: false) if portfolio.allocations.empty?
+  portfolio.cap_and_redistribute_options.create!(active: false, cap_percentage: 0.23, top_n: 3, weights: {
+    "JPM" => 23.03,
+    "JNJ" => 23.0,
+    "PG" => 27.14,
+    "XOM" => 26.83
+  }) if portfolio.cap_and_redistribute_options.empty?
 
   Portfolio.find_or_create_by!(name: "Growth Stocks") do |p|
     p.tickers = [
