@@ -9,7 +9,14 @@
     <% if portfolio.cap_and_redistribute_options.present? %>
       <% portfolio.cap_and_redistribute_options.each do |option| %>
         <% disabled_class = option.active ? "bg-base-100" : "opacity-50 bg-base-300"
-        toggle_button_class = cap_and_redistribute_toggle_class(option.active) %>
+        toggle_button_class =
+          (
+            if option.active
+              "btn btn-disabled text-accent btn-xs btn-ghost"
+            else
+              "btn btn-xs btn-accent btn-soft"
+            end
+          ) %>
         <div
           class="flex gap-10 items-center p-2 border shadow-sm  border-base-300 h-fit <%= disabled_class %>"
         >
