@@ -2,6 +2,8 @@
   <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute
     <% if @portfolio.cap_and_redistribute_options.present? && @portfolio.cap_and_redistribute_options.any?(&:active) %>
       <span class="ml-2 font-medium badge badge-sm badge-warning">Active</span>
+    <% else %>
+      <span class="ml-2 font-medium badge badge-neutral badge-sm">No Active Views</span>
     <% end %>
   </div>
 
@@ -78,7 +80,7 @@
       <p class="text-sm italic text-base-content/25">No cap and redistribute views configured.</p>
     <% end %>
   </div>
-  <div class="pt-4 font-semibold text-base-content/75">Create a Cap and Redistribute View</div>
+  <div class="pt-6 text-sm font-semibold text-base-content/75">Create a Cap and Redistribute View</div>
   <% if portfolio.errors[:cap_and_redistribute_options].any? %>
     <div class="pt-2 alert alert-error">
       <ul class="list-disc list-inside">

@@ -39,7 +39,7 @@
     <div class="text-lg font-semibold text-base-content/75">
       Tickers and Weights
       <% if @portfolio.allocations.present? && @portfolio.allocations.any?(&:enabled) %>
-        <span class="ml-2 font-medium badge badge-sm badge-warning">Adjusted for Allocations</span>
+        <span class="ml-2 font-semibold badge badge-warning badge-xs">Weights Adjusted for Allocations</span>
       <% end %>
     </div>
     <div class="flex flex-wrap gap-4 pt-2">
