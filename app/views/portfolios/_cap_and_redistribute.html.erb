@@ -7,18 +7,26 @@
         <% disabled_class = option.active ? "bg-base-100" : "opacity-50 bg-base-300"
         toggle_button_class = cap_and_redistribute_toggle_class(option.active) %>
         <div
-          class="flex gap-6 items-center p-2 max-w-xs border shadow-sm  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
+          class="flex gap-6 items-center p-2 border shadow-sm  border-base-300 h-fit min-w-3xs w-fit <%= disabled_class %>"
         >
           <div class="flex justify-between items-center w-full">
             <div class="block shrink truncate">
-              <p class="text-sm font-semibold">Cap:
-                <%= format_percentage(option.cap_percentage * 100) %>%</p>
-              <p class="text-xs text-base-content/60">Top N:
-                <%= option.top_n %></p>
+              <p>
+                <span class="font-semibold">Capped</span>
+                at
+                <span class="font-bold text-primary">
+                  <%= format_percentage(option.cap_percentage * 100) %>%
+                </span>
+              </p>
+              <p>
+                <span class="font-semibold">Redistributed</span>
+                to top
+                <span class="font-bold text-primary"><%= option.top_n %></span>
+              </p>
             </div>
           </div>
           <div class="flex gap-2 items-center">
-            <%= button_to option.active ? "Active" : "View",
+            <%= button_to option.active ? "Viewing" : "View",
             portfolio_path(portfolio),
             method: :patch,
             params: {
