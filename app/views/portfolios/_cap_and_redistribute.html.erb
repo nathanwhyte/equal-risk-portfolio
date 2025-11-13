@@ -1,5 +1,5 @@
 <div>
-  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute Options</div>
+  <div class="text-lg font-semibold text-base-content/75">Cap and Redistribute</div>
 
   <div class="flex flex-wrap gap-4 items-center pt-2">
     <% if portfolio.cap_and_redistribute_options.present? %>
@@ -52,7 +52,7 @@
 
       <div
         class="tooltip"
-        data-tip="Disables any active cap and redistribute options and shows the base portfolio."
+        data-tip="Disables any active cap and redistribute views and shows the base portfolio."
       >
         <%= button_to "View Base Portfolio",
         portfolio_path(portfolio),
@@ -64,7 +64,7 @@
         class: "btn btn-xs" %>
       </div>
     <% else %>
-      <p class="text-sm italic text-base-content/25">No cap and redistribute options added yet.</p>
+      <p class="text-sm italic text-base-content/25">No cap and redistribute views configured.</p>
     <% end %>
   </div>
   <div class="pt-4 font-semibold text-base-content/75">Create a Cap and Redistribute View</div>
@@ -87,9 +87,9 @@
     <span class="font-semibold">
       Redistribute
     </span>
-    the excess weight percentage from the cap to the top
+    any excess weight percentage from the cap evenly between the top
     <i>N</i>
-    stocks based on prior-year performance.
+    stocks based on prior-year growth performance.
   </p>
 
   <%= form_with(model: portfolio, url: portfolio_path(portfolio), method: :patch) do |cap_redistribute_form| %>
@@ -122,4 +122,16 @@
       </div>
     </div>
   <% end %>
+  <p class="pt-3 text-xs text-base-content/50">
+    <span class="font-semibold">
+      Note:
+    </span>
+    Newly created cap and redistribute views
+    <u>will apply changes to the original portfolio weights</u>.
+  </p>
+  <p class="pt-1 text-xs text-base-content/50">
+    Use the
+    <span class="font-semibold">"View Base Portfolio"</span>
+    button view portfolio without any "Cap and Redistribute" views applied.
+  </p>
 </div>
