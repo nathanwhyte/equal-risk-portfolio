@@ -1,0 +1,281 @@
+### EQUAL RISK PORTFOLIO K8S STACK ###
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: equal-risk
+
+### Cloudflare Tunnel ###
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: equal-risk-cloudflared-token
+  namespace: equal-risk
+type: Opaque
+data:
+  TOKEN: ZXlKaElqb2laVGxtTVRkalpEQTJNekV4TTJObFlUbGpNbVUzTTJNek1ESTVOekV3TmpZaUxDSjBJam9pWm1Jd1lUbGtaRGN0TnpsbU1pMDBOMkUxTFRsallqY3RNek00WWpFNU5HWmhZV00xSWl3aWN5STZJbGxYU1RWWlZFNXFUWHBOZEU1NlZUVk9lVEF3VFVSVk5FeFViR2xPYWtsMFdYcFNhazlVVlhoUFZGVjNXbFJTYVNKOQ==
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudflared
+  namespace: equal-risk
+automountServiceAccountToken: false
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: equal-risk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      serviceAccountName: cloudflared
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args:
+            - tunnel
+            - --no-autoupdate
+            - run
+            - --token-file=/etc/cloudflared/token
+          volumeMounts:
+            - name: tokenfile
+              mountPath: /etc/cloudflared
+              readOnly: true
+      volumes:
+        - name: tokenfile
+          secret:
+            secretName: equal-risk-cloudflared-token
+            items:
+              - key: TOKEN
+                path: token
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: equal-risk-secrets
+  namespace: equal-risk
+type: Opaque
+stringData:
+  EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: equal_risk_portfolio_user
+  EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: equal_risk_portfolio_database_password
+  EQUAL_RISK_PORTFOLIO_DATABASE: equal_risk_portfolio_production
+data:
+  RAILS_MASTER_KEY: NjVlZGRhMWQ3YjFjMzNjMjBjZGM3MWM5YWQxYjFhNDg=
+  POLYGON_API_KEY: cGZWdVdEQXY1WTRWczFKa0lXbEVNdEd5ZkZoUmRydzk=
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-postgres
+  namespace: equal-risk
+spec:
+  clusterIP: None
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: external-postgres
+  namespace: equal-risk
+  labels:
+    kubernetes.io/service-name: external-postgres
+addressType: IPv4
+ports:
+  - name: postgres
+    port: 5432
+endpoints:
+  - addresses:
+      - 192.168.1.50
+
+---
+# --------------------------------------------------------
+# MATH API Deployment + Service
+# --------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: equal-risk-math
+  namespace: equal-risk
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: equal-risk-math
+  template:
+    metadata:
+      labels:
+        app: equal-risk-math
+    spec:
+      containers:
+        - name: math
+          image: nathanwhyte/equal-risk-math:latest
+          env:
+            - name: POLYGON_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: POLYGON_API_KEY
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_HOST
+              value: "external-postgres.equal-risk.svc.cluster.local"
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE
+          ports:
+            - containerPort: 3001
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: math
+  namespace: equal-risk
+spec:
+  selector:
+    app: equal-risk-math
+  ports:
+    - port: 3001
+      targetPort: 3001
+
+---
+# --------------------------------------------------------
+# RAILS Deployment + Service
+# --------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: equal-risk-rails
+  namespace: equal-risk
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: equal-risk-rails
+  template:
+    metadata:
+      labels:
+        app: equal-risk-rails
+    spec:
+      containers:
+        - name: rails
+          image: nathanwhyte/sandbox:equal-risk-portfolio-rails
+          env:
+            - name: API_URL
+              value: "http://math:3001"
+            - name: RAILS_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: RAILS_MASTER_KEY
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_HOST
+              value: "external-postgres.equal-risk.svc.cluster.local"
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rails
+  namespace: equal-risk
+spec:
+  selector:
+    app: equal-risk-rails
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# Cloudflare terminates TLS → Ingress is HTTP-only
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: equal-risk-rails
+  namespace: equal-risk
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: equalriskportfolio.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rails
+                port:
+                  number: 3000
+
+    - host: www.equalriskportfolio.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rails
+                port:
+                  number: 3000
+
+---
+# Optional but strongly recommended for graceful restarts & node maintenance
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: equal-risk-pdb
+  namespace: equal-risk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: rails
