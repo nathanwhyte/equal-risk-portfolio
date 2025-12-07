@@ -1,6 +1,7 @@
 services:
   backup:
     container_name: equal-risk-backup
+    restart: unless-stopped
     image: offen/docker-volume-backup:v2
     environment:
       BACKUP_FILENAME: backup-%Y-%m-%dT%H-%M-%S.tar.gz
@@ -13,6 +14,7 @@ services:
 
   postgres:
     container_name: equal-risk-postgres
+    restart: unless-stopped
     image: postgres:17
     ports:
       - 5432:5432

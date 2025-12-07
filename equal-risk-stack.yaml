@@ -102,7 +102,7 @@ ports:
     port: 5432
 endpoints:
   - addresses:
-      - 192.168.1.50
+      - 192.168.1.9
 
 ---
 # --------------------------------------------------------
@@ -114,7 +114,7 @@ metadata:
   name: equal-risk-math
   namespace: equal-risk
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
   selector:
@@ -177,7 +177,7 @@ metadata:
   name: equal-risk-rails
   namespace: equal-risk
 spec:
-  replicas: 1
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
