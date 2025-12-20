@@ -17,7 +17,7 @@ class MathEngineClient
       top_n: top_n
     }.to_json
 
-    Rails.logger.info "\nCalling math engine with body: #{body}\n"
+    Rails.logger.info "Calling math engine with body: #{body}"
 
     response = http_client.post(
       "#{base_url}#{CALCULATE_PATH}",
@@ -27,7 +27,7 @@ class MathEngineClient
 
     raise Error, "Math engine request failed with status #{response.code}" unless response.success?
 
-    Rails.logger.info "Response from math engine: #{response.parsed_response}\n"
+    Rails.logger.info "Response from math engine: #{response.parsed_response}"
 
     parse_weights(response.parsed_response)
   rescue Error

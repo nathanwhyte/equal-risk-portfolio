@@ -33,12 +33,26 @@ Rails.application.configure do
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
-  # Log to STDOUT with the current request id as a default log tag.
-  config.log_tags = [ :request_id ]
-  config.logger   = ActiveSupport::TaggedLogging.logger(STDOUT)
+  # Log to STDOUT with the current request id as a named tag.
+  # Using a hash format ensures the request_id is properly formatted with a key name in logfmt
+  # rails_semantic_logger automatically handles STDOUT logging when running the Rails server
+  config.log_tags = {
+    request_id: :request_id,
+    ip:         :remote_ip
+  }
+
+  # Configure STDOUT logging for containerized environments (Kubernetes, Docker, Heroku)
+  # Kubernetes collects logs from STDOUT/STDERR by default, so we need to ensure logs go there
+  # This is also the best practice for containerized applications
+  if ENV["RAILS_LOG_TO_STDOUT"].present? || ENV["KUBERNETES_SERVICE_HOST"].present? || File.exist?("/.dockerenv")
+    $stdout.sync = true
+    config.rails_semantic_logger.add_file_appender = false
+    config.semantic_logger.add_appender(io: $stdout, formatter: config.rails_semantic_logger.format)
+  end
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!)
-  config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
+  # Support both RAILS_LOG_LEVEL and LOG_LEVEL environment variables
+  config.log_level = ENV.fetch("RAILS_LOG_LEVEL", ENV.fetch("LOG_LEVEL", "info")).downcase.strip.to_sym
 
   # Prevent health checks from clogging up the logs.
   config.silence_healthcheck_path = "/up"

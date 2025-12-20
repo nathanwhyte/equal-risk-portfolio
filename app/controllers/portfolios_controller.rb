@@ -32,8 +32,6 @@ class PortfoliosController < ApplicationController
       weights: @weights,
       allocations: @allocations
     ).adjusted_weights
-
-    Rails.logger.info @portfolio.pretty_print
   end
 
   def new
@@ -105,8 +103,6 @@ class PortfoliosController < ApplicationController
       end
     end
 
-    Rails.logger.info @portfolio.pretty_print
-
     if params[:commit] == "Search"
       redirect_to tickers_search_path(query: params[:query])
     else
@@ -131,7 +127,7 @@ class PortfoliosController < ApplicationController
   end
 
   def update
-    Rails.logger.info "\nParams received for update: #{params}\n"
+    Rails.logger.info "Params received for update: #{params}"
 
     # Handle allocations-only updates from the show page
     # Check both top-level and nested params (form_with nests, button_to doesn't)
@@ -147,7 +143,7 @@ class PortfoliosController < ApplicationController
       return
     end
 
-    Rails.logger.info "\nUpdating Portfolio (#{params})\n"
+    Rails.logger.info "Updating Portfolio: #{params}"
 
     if params[:cap_and_redistribute] == "true" || params.dig(:portfolio, :cap_and_redistribute) == "true"
       cap_percentage = params.dig(:portfolio, :cap_percentage).to_f
@@ -218,7 +214,7 @@ class PortfoliosController < ApplicationController
   end
 
   def handle_cap_and_redistribute(tickers, cap_percentage, top_n)
-    Rails.logger.info "\nApplying cap and redistribute: Cap #{cap_percentage}%, Top N #{top_n}, tickers: #{tickers}\n"
+    Rails.logger.info "Applying cap and redistribute: Cap #{cap_percentage}%, Top N #{top_n}, tickers: #{tickers}"
 
     version_cap = cap_percentage > 0 ? cap_percentage / 100.0 : nil
     version_top_n = top_n > 0 ? top_n : nil

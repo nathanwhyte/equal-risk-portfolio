@@ -114,7 +114,7 @@ metadata:
   name: equal-risk-math
   namespace: equal-risk
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
   selector:
@@ -128,6 +128,7 @@ spec:
       containers:
         - name: math
           image: nathanwhyte/equal-risk-math:latest
+          imagePullPolicy: Always
           env:
             - name: POLYGON_API_KEY
               valueFrom:
@@ -177,7 +178,7 @@ metadata:
   name: equal-risk-rails
   namespace: equal-risk
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -193,10 +194,13 @@ spec:
     spec:
       containers:
         - name: rails
-          image: nathanwhyte/sandbox:equal-risk-portfolio-rails
+          image: nathanwhyte/equal-risk-rails:logs
+          imagePullPolicy: Always
           env:
             - name: API_URL
               value: "http://math:3001"
+            - name: RAILS_LOG_TO_STDOUT
+              value: "true"
             - name: RAILS_MASTER_KEY
               valueFrom:
                 secretKeyRef:

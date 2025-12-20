@@ -36,6 +36,16 @@ plugin :tmp_restart
 # Run the Solid Queue supervisor inside of Puma for single-server deployments
 plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
 
+# Re-open Semantic Logger appenders after Puma forks workers
+# This is required when running Puma in clustered mode with preloading
+# See: https://logger.rocketjob.io/forking.html
+# Only configure this if workers are actually being used (WEB_CONCURRENCY > 0)
+if ENV["WEB_CONCURRENCY"].to_i > 0
+  before_worker_boot do
+    SemanticLogger.reopen
+  end
+end
+
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.
 pidfile ENV["PIDFILE"] if ENV["PIDFILE"]
