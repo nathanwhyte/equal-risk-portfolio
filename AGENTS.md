@@ -85,6 +85,110 @@ If you prefer to use the Kubernetes Job manifest directly:
 5. Monitor: `kubectl logs -f job/postgres-restore -n equal-risk`
 6. Scale up: `kubectl scale statefulset postgres --replicas=1 -n equal-risk`
 
+### Daily Postgres Backups to Garage
+
+The Postgres StatefulSet is automatically backed up daily to Garage S3-compatible storage using a Kubernetes CronJob.
+
+#### Prerequisites
+
+- Garage deployment accessible from the `equal-risk` namespace
+- Garage bucket `equal-risk-postgres-backups` must exist (create via garage-manager or manually)
+- Garage S3 credentials secret `s3-provider-credentials` in the `equal-risk` namespace
+
+#### Setup Steps
+
+1. **Create the Garage bucket** (if not already created):
+   ```bash
+   # Using garage-manager
+   kubectl exec -it deployment/garage-manager -n garage -- python /app/garage-manager.py list-buckets
+   # Create bucket if needed (via Garage admin API or garage-manager)
+   ```
+
+2. **Create the S3 credentials secret** in the `equal-risk` namespace:
+   ```bash
+   # Option 1: Create new credentials
+   kubectl exec -it garage-0 -n garage -- garage key new --name postgres-backup-key
+   # Use the output to create the secret:
+   kubectl create secret generic s3-provider-credentials \
+     --from-literal=S3_PROVIDER_ACCESS_KEY='your-access-key-id' \
+     --from-literal=S3_PROVIDER_SECRET_KEY='your-secret-key' \
+     -n equal-risk
+
+   # Option 2: Copy from garage namespace (if secret already exists there)
+   kubectl get secret s3-provider-credentials -n garage -o yaml | \
+     sed 's/namespace: garage/namespace: equal-risk/' | \
+     kubectl apply -f -
+   ```
+
+3. **Deploy the backup resources**:
+   ```bash
+   kubectl apply -f k8s/postgres-backup-config.yaml
+   kubectl apply -f k8s/postgres-backup-cronjob.yaml
+   ```
+
+4. **Verify the CronJob**:
+   ```bash
+   kubectl get cronjob postgres-backup -n equal-risk
+   ```
+
+#### Backup Details
+
+- **Schedule**: Daily at midnight UTC (`0 0 * * *`)
+- **Format**: Compressed SQL dump (`.sql.gz`) created with `pg_dump`
+- **Retention**: 7 days (automatically cleaned up)
+- **Storage**: Garage S3 bucket `equal-risk-postgres-backups`
+- **Naming**: `postgres-backup-YYYY-MM-DD-HHMMSS.sql.gz`
+
+#### Manual Backup Trigger
+
+To manually trigger a backup job:
+
+```bash
+kubectl create job --from=cronjob/postgres-backup postgres-backup-manual -n equal-risk
+```
+
+Monitor the backup:
+
+```bash
+kubectl logs -f job/postgres-backup-manual -n equal-risk
+```
+
+#### Restoring from Backup
+
+1. **Download backup from Garage**:
+   ```bash
+   kubectl exec -it deployment/garage-manager -n garage -- python /app/garage-manager.py download equal-risk-postgres-backups postgres-backup-2024-01-15-000000.sql.gz /tmp/backup.sql.gz
+   ```
+
+2. **Copy backup to local machine** (if needed):
+   ```bash
+   kubectl cp garage/garage-manager-<pod-id>:/tmp/backup.sql.gz ./backup.sql.gz
+   ```
+
+3. **Restore to Postgres**:
+   ```bash
+   # Get database credentials
+   DB_USER=$(kubectl get secret equal-risk-secrets -n equal-risk -o jsonpath='{.data.EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}' | base64 -d)
+   DB_NAME=$(kubectl get secret equal-risk-secrets -n equal-risk -o jsonpath='{.data.EQUAL_RISK_PORTFOLIO_DATABASE}' | base64 -d)
+
+   # Restore (scale down StatefulSet first if needed)
+   gunzip < backup.sql.gz | kubectl exec -i postgres-0 -n equal-risk -- psql -U $DB_USER -d $DB_NAME
+   ```
+
+   Or restore to a specific database:
+
+   ```bash
+   kubectl exec -i postgres-0 -n equal-risk -- psql -U $DB_USER -d $DB_NAME < <(gunzip < backup.sql.gz)
+   ```
+
+#### Troubleshooting
+
+- **Check CronJob status**: `kubectl get cronjob postgres-backup -n equal-risk`
+- **View recent jobs**: `kubectl get jobs -n equal-risk -l job-name=postgres-backup`
+- **Check job logs**: `kubectl logs job/postgres-backup-<timestamp> -n equal-risk`
+- **Verify bucket exists**: `kubectl exec -it deployment/garage-manager -n garage -- python /app/garage-manager.py list-files equal-risk-postgres-backups`
+- **Check secret exists**: `kubectl get secret s3-provider-credentials -n equal-risk`
+
 ## Detailed Guidelines
 
 For comprehensive development guidelines, coding standards, testing requirements, and workflow rules, see **`.cursor/rules/project-guidelines.mdc`**.

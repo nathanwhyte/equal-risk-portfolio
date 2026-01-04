@@ -1,0 +1,124 @@
+---
+# CronJob for daily Postgres backups to Garage
+# Runs daily at midnight UTC (0 0 * * *)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: equal-risk
+spec:
+  schedule: "0 0 * * *"  # Daily at midnight UTC
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid  # Don't run multiple backups concurrently
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          initContainers:
+            - name: install-boto3
+              image: python:3.11-slim
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Installing boto3..."
+                  pip install --no-cache-dir --target /packages boto3
+                  echo "boto3 installation complete"
+              volumeMounts:
+                - name: python-packages
+                  mountPath: /packages
+          containers:
+            - name: backup
+              image: postgres:17
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                runAsUser: 0  # Run as root to install Python
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  # Install Python3 (postgres image is Debian-based)
+                  apt-get update && \
+                  apt-get install -y --no-install-recommends python3 && \
+                  # Run backup script with boto3 from init container
+                  export PYTHONPATH=/packages && \
+                  python3 /app/postgres-backup-script.py
+              env:
+                # Postgres connection settings
+                - name: POSTGRES_HOST
+                  value: "postgres.equal-risk.svc.cluster.local"
+                - name: POSTGRES_PORT
+                  value: "5432"
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: equal-risk-secrets
+                      key: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: equal-risk-secrets
+                      key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: equal-risk-secrets
+                      key: EQUAL_RISK_PORTFOLIO_DATABASE
+                # Garage S3 settings
+                - name: S3_PROVIDER_ENDPOINT
+                  valueFrom:
+                    configMapKeyRef:
+                      name: postgres-backup-config
+                      key: S3_PROVIDER_ENDPOINT
+                - name: S3_PROVIDER_REGION
+                  valueFrom:
+                    configMapKeyRef:
+                      name: postgres-backup-config
+                      key: S3_PROVIDER_REGION
+                - name: S3_PROVIDER_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-provider-credentials
+                      key: S3_PROVIDER_ACCESS_KEY
+                - name: S3_PROVIDER_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: s3-provider-credentials
+                      key: S3_PROVIDER_SECRET_KEY
+                # Backup configuration
+                - name: BACKUP_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: postgres-backup-config
+                      key: BACKUP_BUCKET
+                - name: BACKUP_RETENTION_DAYS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: postgres-backup-config
+                      key: BACKUP_RETENTION_DAYS
+              volumeMounts:
+                - name: backup-script
+                  mountPath: /app/postgres-backup-script.py
+                  subPath: postgres-backup-script.py
+                  readOnly: true
+                - name: python-packages
+                  mountPath: /packages
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi
+          volumes:
+            - name: backup-script
+              configMap:
+                name: postgres-backup-config
+                defaultMode: 0755
+            - name: python-packages
+              emptyDir: {}
+
