@@ -62,21 +62,86 @@ spec:
                 path: token
 
 ---
-apiVersion: v1
-kind: Secret
+# --------------------------------------------------------
+# POSTGRES StatefulSet with PVC
+# --------------------------------------------------------
+apiVersion: apps/v1
+kind: StatefulSet
 metadata:
-  name: equal-risk-secrets
+  name: postgres
   namespace: equal-risk
-type: Opaque
-stringData:
-  EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: equal_risk_portfolio_user
-  EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: equal_risk_portfolio_database_password
-  EQUAL_RISK_PORTFOLIO_DATABASE: equal_risk_portfolio_production
-data:
-  RAILS_MASTER_KEY: NjVlZGRhMWQ3YjFjMzNjMjBjZGM3MWM5YWQxYjFhNDg=
-  POLYGON_API_KEY: cGZWdVdEQXY1WTRWczFKa0lXbEVNdEd5ZkZoUmRydzk=
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: longhorn-db
 
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: equal-risk
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  clusterIP: None
+
+---
+# Legacy external postgres service (can be removed after migration)
 apiVersion: v1
 kind: Service
 metadata:
@@ -85,8 +150,8 @@ metadata:
 spec:
   clusterIP: None
   ports:
-    - port: 5432
-      targetPort: 5432
+    - port: 5555
+      targetPort: 5555
 
 ---
 apiVersion: discovery.k8s.io/v1
@@ -127,7 +192,7 @@ spec:
     spec:
       containers:
         - name: math
-          image: nathanwhyte/equal-risk-math:latest
+          image: nathanwhyte/equal-risk-math:logs
           imagePullPolicy: Always
           env:
             - name: POLYGON_API_KEY
@@ -146,7 +211,9 @@ spec:
                   name: equal-risk-secrets
                   key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
             - name: EQUAL_RISK_PORTFOLIO_DATABASE_HOST
-              value: "external-postgres.equal-risk.svc.cluster.local"
+              value: postgres.equal-risk.svc.cluster.local
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_PORT
+              value: "5432"
             - name: EQUAL_RISK_PORTFOLIO_DATABASE
               valueFrom:
                 secretKeyRef:
@@ -217,7 +284,9 @@ spec:
                   name: equal-risk-secrets
                   key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
             - name: EQUAL_RISK_PORTFOLIO_DATABASE_HOST
-              value: "external-postgres.equal-risk.svc.cluster.local"
+              value: postgres.equal-risk.svc.cluster.local
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_PORT
+              value: "5432"
             - name: EQUAL_RISK_PORTFOLIO_DATABASE
               valueFrom:
                 secretKeyRef:

@@ -17,7 +17,7 @@ services:
     restart: unless-stopped
     image: postgres:17
     ports:
-      - 5432:5432
+      - 5555:5432
     shm_size: 128mb
     environment:
       POSTGRES_USER: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
