@@ -29,11 +29,15 @@ async def root() -> str:
 async def calculate_equal_risk(request: EqualRiskRequest):
     logger.info(f"Received request {request}")
 
-    tickers_not_in_db = db.check_tickers(db_engine, request.tickers)
+    tickers = request.tickers
 
-    if len(tickers_not_in_db) > 0:
-        logger.info(f"Fetching data for {tickers_not_in_db}")
-        fetch.fetch_ticker_data(db_engine, tickers_not_in_db)
+    # tickers_not_in_db = db.check_tickers(db_engine, request.tickers)
+    #
+    # if len(tickers_not_in_db) > 0:
+    #     logger.info(f"Fetching data for {tickers_not_in_db}")
+    #     fetch.fetch_ticker_data(db_engine, tickers_not_in_db)
+
+    fetch.fetch_ticker_data(db_engine, tickers)
 
     logger.info(f"Calculating equal risk for {request.tickers}")
 

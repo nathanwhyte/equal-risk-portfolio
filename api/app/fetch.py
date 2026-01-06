@@ -49,7 +49,8 @@ def fetch_ticker_data(engine: Engine, tickers: list[str]):
     with engine.begin() as conn:
         _ = conn.execute(
             text(
-                "INSERT INTO close_prices (id, ticker, date, close) VALUES (:id, :ticker, :date, :close)"
+                "INSERT INTO close_prices (id, ticker, date, close) VALUES (:id, :ticker, :date, :close) "
+                "ON CONFLICT (ticker, date) DO UPDATE SET close = EXCLUDED.close"
             ),
             data,
         )
