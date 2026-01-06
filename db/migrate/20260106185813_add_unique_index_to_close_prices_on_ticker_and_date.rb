@@ -2,11 +2,11 @@
 
 class AddUniqueIndexToClosePricesOnTickerAndDate < ActiveRecord::Migration[8.1]
   def up
-    # Remove duplicates, keeping the row with the minimum id for each (ticker, date) pair
+    # Remove duplicates, keeping one row for each (ticker, date) pair
     execute <<-SQL
       DELETE FROM close_prices
-      WHERE id NOT IN (
-        SELECT MIN(id)
+      WHERE ctid NOT IN (
+        SELECT MIN(ctid)
         FROM close_prices
         GROUP BY ticker, date
       )
