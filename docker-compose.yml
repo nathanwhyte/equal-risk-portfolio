@@ -1,80 +1,7 @@
 services:
-  rails:
-    image: nathanwhyte/sandbox:equal-risk-portfolio-rails
-    build: .
-    restart: always
-    labels:
-      docker-rollout.pre-stop-hook: "touch /tmp/drain && sleep 10"
-    expose:
-      - 3000
-    environment:
-      VIRTUAL_HOST: equalriskportfolio.com,www.equalriskportfolio.com
-      API_URL: http://math:3001
-      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
-      EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
-      EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
-      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db
-      EQUAL_RISK_PORTFOLIO_DATABASE: ${EQUAL_RISK_PORTFOLIO_DATABASE}
-    develop:
-      watch:
-        - action: rebuild
-          path: app
-          target: rails
-        - action: sync
-          path: config
-          target: rails
-    deploy:
-      replicas: 2
-    healthcheck:
-      test: test ! -f /tmp/drain
-      interval: 5s
-      retries: 1
-    depends_on:
-      - db
-      - math
-
-  math:
-    image: nathanwhyte/sandbox:equal-risk-portfolio-api
-    build:
-      context: api
-      dockerfile: Dockerfile
-    labels:
-      docker-rollout.pre-stop-hook: "touch /tmp/drain && sleep 10"
-    restart: always
-    expose:
-      - 3001
-    environment:
-      POLYGON_API_KEY: ${POLYGON_API_KEY}
-      EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
-      EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
-      EQUAL_RISK_PORTFOLIO_DATABASE_HOST: db
-      EQUAL_RISK_PORTFOLIO_DATABASE: ${EQUAL_RISK_PORTFOLIO_DATABASE}
-    develop:
-      watch:
-        - action: rebuild
-          path: ./api/app
-          target: python
-    healthcheck:
-      test: test ! -f /tmp/drain
-      interval: 5s
-      retries: 1
-    depends_on:
-      - db
-
-  db:
-    image: postgres:17
-    expose:
-      - 5432
-    restart: always
-    shm_size: 128mb
-    environment:
-      POSTGRES_USER: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
-      POSTGRES_DB: ${EQUAL_RISK_PORTFOLIO_DATABASE}
-    volumes:
-      - pgdata-prod:/var/lib/postgresql/data
-
   backup:
+    container_name: equal-risk-backup
+    restart: unless-stopped
     image: offen/docker-volume-backup:v2
     environment:
       BACKUP_FILENAME: backup-%Y-%m-%dT%H-%M-%S.tar.gz
@@ -85,7 +12,26 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${HOME}/backups:/archive
 
+  postgres:
+    container_name: equal-risk-postgres
+    restart: unless-stopped
+    image: postgres:17
+    ports:
+      - 5555:5432
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: ${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}
+      POSTGRES_DB: ${EQUAL_RISK_PORTFOLIO_DATABASE}
+    volumes:
+      - pgdata-prod:/var/lib/postgresql/data
+
 volumes:
   pgdata-prod:
     name: equal-risk-portfolio-pgdata-prod
     external: true
+
+networks:
+  default:
+    external: true
+    name: proxy

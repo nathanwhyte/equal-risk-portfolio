@@ -1,0 +1,193 @@
+#!/bin/bash
+# Migration script to restore Postgres docker volume backup into Kubernetes PVC
+#
+# This script helps migrate a Postgres backup from docker-volume-backup format
+# into a Kubernetes PVC-backed Postgres StatefulSet.
+
+set -e
+
+NAMESPACE="equal-risk"
+STATEFULSET="postgres"
+BACKUP_FILE="${1:-}"
+
+if [ -z "$BACKUP_FILE" ]; then
+  echo "Usage: $0 <backup-file.tar.gz>"
+  echo ""
+  echo "Example:"
+  echo "  $0 ~/backups/backup-2024-01-15T12-00-00.tar.gz"
+  exit 1
+fi
+
+if [ ! -f "$BACKUP_FILE" ]; then
+  echo "Error: Backup file not found: $BACKUP_FILE"
+  exit 1
+fi
+
+echo "=========================================="
+echo "Postgres Migration to Kubernetes"
+echo "=========================================="
+echo "Backup file: $BACKUP_FILE"
+echo "Namespace: $NAMESPACE"
+echo "StatefulSet: $STATEFULSET"
+echo ""
+
+# Check if kubectl is available
+if ! command -v kubectl &> /dev/null; then
+  echo "Error: kubectl not found. Please install kubectl."
+  exit 1
+fi
+
+# Check if we can connect to the cluster
+if ! kubectl cluster-info &> /dev/null; then
+  echo "Error: Cannot connect to Kubernetes cluster."
+  exit 1
+fi
+
+# Check if StatefulSet exists
+if ! kubectl get statefulset "$STATEFULSET" -n "$NAMESPACE" &> /dev/null; then
+  echo "Error: StatefulSet '$STATEFULSET' not found in namespace '$NAMESPACE'"
+  echo "Please deploy the StatefulSet first using: kubectl apply -f equal-risk-stack.yaml"
+  exit 1
+fi
+
+# Get the PVC name (StatefulSet creates PVC with pattern: <volume-claim-template-name>-<statefulset-name>-<ordinal>)
+PVC_NAME="${STATEFULSET}-data-${STATEFULSET}-0"
+if ! kubectl get pvc "$PVC_NAME" -n "$NAMESPACE" &> /dev/null; then
+  echo "Warning: PVC '$PVC_NAME' not found. Trying alternative naming..."
+  # Try alternative naming pattern
+  PVC_NAME="postgres-data-${STATEFULSET}-0"
+  if ! kubectl get pvc "$PVC_NAME" -n "$NAMESPACE" &> /dev/null; then
+    echo "Error: Could not find PVC. Please check the StatefulSet configuration."
+    echo "Available PVCs in namespace:"
+    kubectl get pvc -n "$NAMESPACE"
+    exit 1
+  fi
+fi
+
+echo "Found PVC: $PVC_NAME"
+echo ""
+
+# Step 1: Scale down StatefulSet
+echo "Step 1: Scaling down StatefulSet..."
+kubectl scale statefulset "$STATEFULSET" --replicas=0 -n "$NAMESPACE"
+echo "Waiting for pods to terminate..."
+kubectl wait --for=delete pod -l app=postgres -n "$NAMESPACE" --timeout=120s || true
+echo "✓ StatefulSet scaled down"
+echo ""
+
+# Step 2: Create a temporary pod to copy the backup file
+echo "Step 2: Creating temporary pod for restore..."
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: postgres-restore-temp
+  namespace: $NAMESPACE
+spec:
+  restartPolicy: Never
+  containers:
+    - name: restore
+      image: postgres:17
+      command: ["sleep", "3600"]
+      volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: backup
+          mountPath: /backup
+  volumes:
+    - name: postgres-data
+      persistentVolumeClaim:
+        claimName: $PVC_NAME
+    - name: backup
+      emptyDir: {}
+EOF
+
+echo "Waiting for pod to be ready..."
+kubectl wait --for=condition=Ready pod/postgres-restore-temp -n "$NAMESPACE" --timeout=60s
+
+# Step 3: Copy backup file into the pod
+echo "Step 3: Copying backup file into pod..."
+BACKUP_FILENAME=$(basename "$BACKUP_FILE")
+kubectl cp "$BACKUP_FILE" "$NAMESPACE/postgres-restore-temp:/backup/$BACKUP_FILENAME"
+echo "✓ Backup file copied"
+echo ""
+
+# Step 4: Extract and restore
+echo "Step 4: Extracting and restoring backup..."
+kubectl exec -n "$NAMESPACE" postgres-restore-temp -- bash -c "
+set -e
+echo 'Creating restore directory...'
+mkdir -p /tmp/restore
+echo 'Extracting backup...'
+tar -xzf /backup/$BACKUP_FILENAME -C /tmp/restore
+
+echo 'Finding postgres data directory...'
+# docker-volume-backup preserves the mount path structure
+# Based on docker-compose.yml, the volume was mounted at /backup/equal-risk-backup
+# So the backup contains: /backup/equal-risk-backup/ (which is the Postgres data directory)
+# Reference: https://offen.github.io/docker-volume-backup/how-tos/restore-volumes-from-backup.html
+#
+# We need to find the directory that contains both PG_VERSION and base/ at the root level
+# This identifies the actual Postgres data directory (not a subdirectory like base/1/)
+for dir in \$(find /tmp/restore -type d); do
+  if [ -f \"\$dir/PG_VERSION\" ] && [ -d \"\$dir/base\" ]; then
+    DATA_DIR=\"\$dir\"
+    break
+  fi
+done
+
+if [ -z \"\$DATA_DIR\" ]; then
+  echo 'ERROR: Could not find Postgres data directory in backup'
+  echo 'Expected structure: directory containing both PG_VERSION file and base/ subdirectory'
+  echo 'Backup structure:'
+  find /tmp/restore -type f -name 'PG_VERSION' | head -5
+  echo '---'
+  find /tmp/restore -type d -name 'base' | head -5
+  exit 1
+fi
+
+echo \"Found Postgres data directory: \$DATA_DIR\"
+
+echo 'Cleaning target directory...'
+rm -rf /var/lib/postgresql/data/*
+
+echo 'Copying restored data...'
+# Reference: https://offen.github.io/docker-volume-backup/how-tos/restore-volumes-from-backup.html
+# Make sure you copy the correct path level - copy all contents including hidden files
+cp -a \"\$DATA_DIR\"/. /var/lib/postgresql/data/
+
+echo 'Fixing permissions...'
+chown -R 999:999 /var/lib/postgresql/data
+chmod -R 700 /var/lib/postgresql/data
+
+echo 'Restore completed successfully!'
+ls -la /var/lib/postgresql/data
+"
+
+# Step 5: Clean up temporary pod
+echo ""
+echo "Step 5: Cleaning up temporary pod..."
+kubectl delete pod postgres-restore-temp -n "$NAMESPACE" --wait=true
+echo "✓ Temporary pod deleted"
+echo ""
+
+# Step 6: Scale up StatefulSet
+echo "Step 6: Scaling up StatefulSet..."
+kubectl scale statefulset "$STATEFULSET" --replicas=1 -n "$NAMESPACE"
+echo "Waiting for pod to be ready..."
+kubectl wait --for=condition=Ready pod -l app=postgres -n "$NAMESPACE" --timeout=120s
+echo "✓ StatefulSet scaled up"
+echo ""
+
+echo "=========================================="
+echo "Migration completed successfully!"
+echo "=========================================="
+echo ""
+echo "Next steps:"
+echo "  1. Verify the database is accessible:"
+echo "     kubectl exec -it $STATEFULSET-0 -n $NAMESPACE -- psql -U \$(kubectl get secret equal-risk-secrets -n $NAMESPACE -o jsonpath='{.data.EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}' | base64 -d) -d \$(kubectl get secret equal-risk-secrets -n $NAMESPACE -o jsonpath='{.data.EQUAL_RISK_PORTFOLIO_DATABASE}' | base64 -d) -c 'SELECT COUNT(*) FROM users;'"
+echo ""
+echo "  2. Update your application deployments to use 'postgres.equal-risk.svc.cluster.local' instead of 'external-postgres'"
+echo ""
+echo "  3. Once verified, you can remove the external-postgres Service and EndpointSlice from equal-risk-stack.yaml"
+

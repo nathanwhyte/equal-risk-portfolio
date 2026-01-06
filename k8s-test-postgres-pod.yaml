@@ -1,0 +1,97 @@
+# Test pod to verify Postgres database restoration
+# This pod will connect to the Postgres database and run a test query
+apiVersion: v1
+kind: Pod
+metadata:
+  name: postgres-test
+  namespace: equal-risk
+spec:
+  restartPolicy: Never
+  containers:
+    - name: test
+      image: postgres:17
+      command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "=========================================="
+          echo "Postgres Database Connection Test"
+          echo "=========================================="
+          echo ""
+
+          # Get database credentials from environment
+          DB_USER="${EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME}"
+          DB_NAME="${EQUAL_RISK_PORTFOLIO_DATABASE}"
+          DB_HOST="${EQUAL_RISK_PORTFOLIO_DATABASE_HOST}"
+
+          echo "Connecting to database..."
+          echo "  Host: $DB_HOST"
+          echo "  Database: $DB_NAME"
+          echo "  User: $DB_USER"
+          echo ""
+
+          # Test connection
+          echo "1. Testing database connection..."
+          PGPASSWORD="${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT version();" || {
+            echo "ERROR: Failed to connect to database"
+            exit 1
+          }
+          echo ""
+
+          # Check users table
+          echo "2. Checking users table..."
+          PGPASSWORD="${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) as total_users FROM users;"
+          echo ""
+
+          # List all users
+          echo "3. Listing all users..."
+          PGPASSWORD="${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT id, email_address, created_at FROM users ORDER BY created_at;"
+          echo ""
+
+          # Check portfolios
+          echo "4. Checking portfolios..."
+          PGPASSWORD="${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) as total_portfolios FROM portfolios;"
+          echo ""
+
+          # Check allocations
+          echo "5. Checking allocations..."
+          PGPASSWORD="${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) as total_allocations FROM allocations;"
+          echo ""
+
+          # Check close prices
+          echo "6. Checking close prices..."
+          PGPASSWORD="${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) as total_close_prices FROM close_prices;"
+          echo ""
+
+          # Database size
+          echo "7. Database size information..."
+          PGPASSWORD="${EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD}" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -c "
+            SELECT
+              pg_size_pretty(pg_database_size('$DB_NAME')) as database_size,
+              (SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public') as table_count;
+          "
+          echo ""
+
+          echo "=========================================="
+          echo "All tests completed successfully!"
+          echo "=========================================="
+      env:
+        - name: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: equal-risk-secrets
+              key: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+        - name: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: equal-risk-secrets
+              key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+        - name: EQUAL_RISK_PORTFOLIO_DATABASE
+          valueFrom:
+            secretKeyRef:
+              name: equal-risk-secrets
+              key: EQUAL_RISK_PORTFOLIO_DATABASE
+        - name: EQUAL_RISK_PORTFOLIO_DATABASE_HOST
+          value: "postgres.equal-risk.svc.cluster.local"
+

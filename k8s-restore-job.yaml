@@ -1,0 +1,118 @@
+# Kubernetes Job to restore Postgres backup from tar.gz into PVC
+#
+# Usage:
+#   1. Scale down the postgres StatefulSet: kubectl scale statefulset postgres --replicas=0 -n equal-risk
+#   2. Copy your backup file to a location accessible to the cluster (or use a ConfigMap/Secret)
+#   3. Update the BACKUP_FILE_PATH in this manifest to point to your backup file
+#   4. Apply this job: kubectl apply -f k8s-restore-job.yaml
+#   5. Monitor the job: kubectl logs -f job/postgres-restore -n equal-risk
+#   6. Once complete, scale up the StatefulSet: kubectl scale statefulset postgres --replicas=1 -n equal-risk
+#
+# Note: The backup file must be accessible from within the cluster. Options:
+#   - Upload to a web server and download via wget/curl
+#   - Use a ConfigMap (for small files) or Secret
+#   - Mount from a shared volume
+#   - Use kubectl cp to copy into a pod, then reference it
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-restore
+  namespace: equal-risk
+spec:
+  ttlSecondsAfterFinished: 3600  # Clean up job after 1 hour
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: restore
+          image: postgres:17
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Starting restore process..."
+
+              # Extract backup file
+              if [ -f "$BACKUP_FILE_PATH" ]; then
+                echo "Extracting backup from $BACKUP_FILE_PATH..."
+                tar -xzf "$BACKUP_FILE_PATH" -C /restore
+              else
+                echo "ERROR: Backup file not found at $BACKUP_FILE_PATH"
+                exit 1
+              fi
+
+              # Find the postgres data directory in the extracted backup
+              # docker-volume-backup preserves the mount path structure
+              # Reference: https://offen.github.io/docker-volume-backup/how-tos/restore-volumes-from-backup.html
+              # Based on docker-compose.yml, the volume was mounted at /backup/equal-risk-backup
+              # So the backup contains: /backup/equal-risk-backup/ (which is the Postgres data directory)
+              #
+              # We need to find the directory that contains both PG_VERSION and base/ at the root level
+              # This identifies the actual Postgres data directory (not a subdirectory like base/1/)
+              DATA_DIR=""
+              for dir in $(find /restore -type d); do
+                if [ -f "$dir/PG_VERSION" ] && [ -d "$dir/base" ]; then
+                  DATA_DIR="$dir"
+                  break
+                fi
+              done
+
+              if [ -z "$DATA_DIR" ]; then
+                echo "ERROR: Could not find Postgres data directory in backup"
+                echo "Expected structure: directory containing both PG_VERSION file and base/ subdirectory"
+                echo "Backup structure:"
+                find /restore -type f -name "PG_VERSION" | head -5
+                echo "---"
+                find /restore -type d -name "base" | head -5
+                exit 1
+              fi
+
+              echo "Found Postgres data directory: $DATA_DIR"
+
+              # Remove existing data if any
+              echo "Cleaning target directory..."
+              rm -rf /var/lib/postgresql/data/*
+
+              # Copy restored data
+              # Reference: https://offen.github.io/docker-volume-backup/how-tos/restore-volumes-from-backup.html
+              # "Make sure you copy the correct path level (this depends on how you mount your volume
+              # into the backup container), you might need to strip some leading elements"
+              echo "Copying restored data..."
+              cp -a "$DATA_DIR"/. /var/lib/postgresql/data/
+
+              # Fix permissions
+              echo "Fixing permissions..."
+              chown -R 999:999 /var/lib/postgresql/data
+              chmod -R 700 /var/lib/postgresql/data
+
+              echo "Restore completed successfully!"
+              ls -la /var/lib/postgresql/data
+          env:
+            - name: BACKUP_FILE_PATH
+              # Update this to point to your backup file location
+              # Options:
+              #   - /backup/backup-latest.tar.gz (if mounted)
+              #   - /tmp/backup.tar.gz (if copied via kubectl cp)
+              value: /backup/backup-latest.tar.gz
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: backup-volume
+              mountPath: /backup
+              readOnly: true
+            - name: restore-tmp
+              mountPath: /restore
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data-postgres-0  # StatefulSet creates PVC with this name
+        - name: backup-volume
+          # Option 1: Use an emptyDir and copy file via kubectl cp before running
+          emptyDir: {}
+          # Option 2: If you have the backup on a web server, remove this volume
+          # and download it in the command above using wget/curl
+        - name: restore-tmp
+          emptyDir: {}
+

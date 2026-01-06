@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""
+Postgres Backup Script for Kubernetes
+Performs pg_dump, compression, upload to Garage S3, and cleanup of old backups.
+"""
+
+import os
+import sys
+import subprocess
+import gzip
+import boto3
+from datetime import datetime, timedelta, timezone
+from botocore.exceptions import ClientError, EndpointConnectionError
+
+
+def get_s3_client():
+    """Create and return a boto3 S3 client configured for Garage."""
+    endpoint_url = os.getenv(
+        "S3_PROVIDER_ENDPOINT", "http://garage.garage.svc.cluster.local:3900"
+    )
+    region = os.getenv("S3_PROVIDER_REGION", "garage")
+    access_key = os.getenv("S3_PROVIDER_ACCESS_KEY")
+    secret_key = os.getenv("S3_PROVIDER_SECRET_KEY")
+
+    if not access_key or not secret_key:
+        print(
+            "Error: S3_PROVIDER_ACCESS_KEY and S3_PROVIDER_SECRET_KEY must be set",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region,
+    )
+
+
+def run_pg_dump(db_host, db_port, db_user, db_password, db_name, output_path):
+    """Run pg_dump to create a database backup."""
+    print(f"Starting pg_dump for database '{db_name}'...")
+
+    # Set PGPASSWORD environment variable for pg_dump
+    env = os.environ.copy()
+    env["PGPASSWORD"] = db_password
+
+    # Run pg_dump with appropriate flags
+    # Plain SQL format (will be compressed with gzip later)
+    # -v: verbose
+    # -f: output file
+    cmd = [
+        "pg_dump",
+        "-h", db_host,
+        "-p", str(db_port),
+        "-U", db_user,
+        "-d", db_name,
+        "-v",
+        "-f", output_path,
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        print(f"pg_dump completed successfully")
+        if result.stdout:
+            print(result.stdout)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error running pg_dump: {e}", file=sys.stderr)
+        if e.stdout:
+            print(f"stdout: {e.stdout}", file=sys.stderr)
+        if e.stderr:
+            print(f"stderr: {e.stderr}", file=sys.stderr)
+        return False
+
+
+def compress_file(input_path, output_path):
+    """Compress a file using gzip."""
+    print(f"Compressing {input_path} to {output_path}...")
+    try:
+        with open(input_path, "rb") as f_in:
+            with gzip.open(output_path, "wb") as f_out:
+                f_out.writelines(f_in)
+        print(f"Compression completed: {output_path}")
+        return True
+    except Exception as e:
+        print(f"Error compressing file: {e}", file=sys.stderr)
+        return False
+
+
+def upload_to_garage(client, bucket_name, local_path, remote_key):
+    """Upload a file to Garage S3 bucket."""
+    print(f"Uploading {local_path} to {bucket_name}/{remote_key}...")
+    try:
+        client.upload_file(local_path, bucket_name, remote_key)
+        print(f"Successfully uploaded {remote_key} to bucket {bucket_name}")
+        return True
+    except ClientError as e:
+        error_code = e.response.get("Error", {}).get("Code", "")
+        if error_code == "NoSuchBucket":
+            print(
+                f"Error: Bucket '{bucket_name}' does not exist. Please create it first.",
+                file=sys.stderr,
+            )
+        else:
+            print(f"Error uploading file: {e}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"Unexpected error uploading file: {e}", file=sys.stderr)
+        return False
+
+
+def cleanup_old_backups(client, bucket_name, retention_days):
+    """Delete backups older than retention_days."""
+    print(f"Cleaning up backups older than {retention_days} days...")
+    try:
+        cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=retention_days)
+
+        # List all objects in the bucket
+        paginator = client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=bucket_name)
+
+        deleted_count = 0
+        for page in pages:
+            if "Contents" not in page:
+                continue
+
+            for obj in page["Contents"]:
+                key = obj["Key"]
+                last_modified = obj["LastModified"]
+
+                # Only delete files that match our backup naming pattern
+                if not key.startswith("postgres-backup-"):
+                    continue
+
+                # Check if file is older than retention period
+                if last_modified.replace(tzinfo=None) < cutoff_date:
+                    print(f"Deleting old backup: {key} (modified: {last_modified})")
+                    try:
+                        client.delete_object(Bucket=bucket_name, Key=key)
+                        deleted_count += 1
+                    except ClientError as e:
+                        print(f"Error deleting {key}: {e}", file=sys.stderr)
+
+        print(f"Cleanup completed: {deleted_count} old backup(s) deleted")
+        return True
+
+    except ClientError as e:
+        print(f"Error during cleanup: {e}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"Unexpected error during cleanup: {e}", file=sys.stderr)
+        return False
+
+
+def main():
+    """Main backup function."""
+    print("=" * 60)
+    print("Postgres Backup to Garage")
+    print("=" * 60)
+
+    # Get configuration from environment variables
+    db_host = os.getenv("POSTGRES_HOST", "postgres.equal-risk.svc.cluster.local")
+    db_port = int(os.getenv("POSTGRES_PORT", "5432"))
+    db_user = os.getenv("POSTGRES_USER")
+    db_password = os.getenv("POSTGRES_PASSWORD")
+    db_name = os.getenv("POSTGRES_DB")
+    bucket_name = os.getenv("BACKUP_BUCKET", "postgres-backups")
+    retention_days = int(os.getenv("BACKUP_RETENTION_DAYS", "7"))
+
+    # Validate required environment variables
+    if not all([db_user, db_password, db_name]):
+        print(
+            "Error: POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB must be set",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Generate backup filename with timestamp
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S")
+    backup_filename = f"postgres-backup-{timestamp}.sql"
+    compressed_filename = f"{backup_filename}.gz"
+    backup_path = f"/tmp/{backup_filename}"
+    compressed_path = f"/tmp/{compressed_filename}"
+
+    try:
+        # Step 1: Run pg_dump
+        if not run_pg_dump(db_host, db_port, db_user, db_password, db_name, backup_path):
+            sys.exit(1)
+
+        # Step 2: Compress backup
+        if not compress_file(backup_path, compressed_path):
+            sys.exit(1)
+
+        # Step 3: Upload to Garage
+        s3_client = get_s3_client()
+        remote_key = compressed_filename
+        if not upload_to_garage(s3_client, bucket_name, compressed_path, remote_key):
+            sys.exit(1)
+
+        # Step 4: Cleanup old backups
+        cleanup_old_backups(s3_client, bucket_name, retention_days)
+
+        print("=" * 60)
+        print("Backup completed successfully!")
+        print(f"Backup file: {remote_key}")
+        print("=" * 60)
+
+    except Exception as e:
+        print(f"Unexpected error: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        # Clean up local files
+        for path in [backup_path, compressed_path]:
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                    print(f"Cleaned up local file: {path}")
+                except Exception as e:
+                    print(f"Warning: Could not remove {path}: {e}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
+

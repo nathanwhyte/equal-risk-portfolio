@@ -6,10 +6,14 @@ class PortfoliosController < ApplicationController
   before_action :set_portfolio, only: %i[ show edit update destroy ]
 
   def index
+    Rails.logger.info "Showing #{Portfolio.all.count} portfolios by creation time"
+
     @portfolios = Portfolio.all.order(created_at: :asc)
   end
 
   def show
+    Rails.logger.info "Showing Portfolio (#{@portfolio.name}, #{@portfolio.id}): #{@portfolio.tickers}, #{@portfolio.weights}"
+
     # Check if there's an active cap and redistribute option
     active_option = @portfolio.active_cap_and_redistribute_option
 
@@ -32,8 +36,6 @@ class PortfoliosController < ApplicationController
       weights: @weights,
       allocations: @allocations
     ).adjusted_weights
-
-    Rails.logger.info @portfolio.pretty_print
   end
 
   def new
@@ -105,8 +107,6 @@ class PortfoliosController < ApplicationController
       end
     end
 
-    Rails.logger.info @portfolio.pretty_print
-
     if params[:commit] == "Search"
       redirect_to tickers_search_path(query: params[:query])
     else
@@ -118,6 +118,8 @@ class PortfoliosController < ApplicationController
         render cache_mode == :new_copy ? :new_copy : :new, status: :unprocessable_entity
       end
     end
+
+    Rails.logger.info "Created Portfolio (#{@portfolio.name}, #{@portfolio.id}): #{@portfolio.tickers}, #{@portfolio.weights}"
 
     clear_cached_tickers(mode: cache_mode, original_portfolio_id: original_portfolio_id)
   end
@@ -131,7 +133,7 @@ class PortfoliosController < ApplicationController
   end
 
   def update
-    Rails.logger.info "\nParams received for update: #{params}\n"
+    Rails.logger.info "Params received for update: #{params}"
 
     # Handle allocations-only updates from the show page
     # Check both top-level and nested params (form_with nests, button_to doesn't)
@@ -147,7 +149,7 @@ class PortfoliosController < ApplicationController
       return
     end
 
-    Rails.logger.info "\nUpdating Portfolio (#{params})\n"
+    Rails.logger.info "Updating Portfolio (#{@portfolio.name}, #{@portfolio.id}): #{params}"
 
     if params[:cap_and_redistribute] == "true" || params.dig(:portfolio, :cap_and_redistribute) == "true"
       cap_percentage = params.dig(:portfolio, :cap_percentage).to_f
@@ -204,6 +206,9 @@ class PortfoliosController < ApplicationController
 
   def destroy
     @portfolio.destroy
+
+    Rails.logger.info "Destroyed Portfolio (#{@portfolio.name}, #{@portfolio.id})"
+
     redirect_to portfolios_url, notice: "Portfolio was successfully destroyed."
   end
 
@@ -218,7 +223,7 @@ class PortfoliosController < ApplicationController
   end
 
   def handle_cap_and_redistribute(tickers, cap_percentage, top_n)
-    Rails.logger.info "\nApplying cap and redistribute: Cap #{cap_percentage}%, Top N #{top_n}, tickers: #{tickers}\n"
+    Rails.logger.info "Applying cap and redistribute to (#{@portfolio.name}, #{@portfolio.id}): Cap #{cap_percentage}%, Top N #{top_n}, tickers: #{tickers}"
 
     version_cap = cap_percentage > 0 ? cap_percentage / 100.0 : nil
     version_top_n = top_n > 0 ? top_n : nil

@@ -28,5 +28,8 @@ module EqualRiskPortfolio
     config.generators do |g|
       g.orm :active_record, primary_key_type: :uuid
     end
+
+    # Configure Semantic Logger with logfmt format
+    config.rails_semantic_logger.format = :logfmt
   end
 end
