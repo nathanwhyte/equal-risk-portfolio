@@ -1,0 +1,117 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-r2-backup
+  namespace: equal-risk
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: install-boto3
+          image: python:3.11-slim
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - pip install --no-cache-dir --target /packages boto3
+          volumeMounts:
+            - name: python-packages
+              mountPath: /packages
+      containers:
+        - name: backup
+          image: postgres:17
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              apt-get update && \
+              apt-get install -y --no-install-recommends python3 && \
+              export PYTHONPATH=/packages && \
+              python3 /app/postgres-backup-script.py
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POSTGRES_HOST
+              value: postgres.equal-risk.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE
+            - name: S3_PROVIDER_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: r2-backup-credentials
+                  key: S3_PROVIDER_ENDPOINT
+            - name: S3_PROVIDER_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-r2-backup-config
+                  key: S3_PROVIDER_REGION
+            - name: S3_PROVIDER_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: r2-backup-credentials
+                  key: S3_PROVIDER_ACCESS_KEY
+            - name: S3_PROVIDER_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: r2-backup-credentials
+                  key: S3_PROVIDER_SECRET_KEY
+            - name: BACKUP_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-r2-backup-config
+                  key: BACKUP_BUCKET
+            - name: BACKUP_PREFIX_ROOT
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-r2-backup-config
+                  key: BACKUP_PREFIX_ROOT
+            - name: BACKUP_APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres-r2-backup-config
+                  key: BACKUP_APP_NAME
+          volumeMounts:
+            - name: backup-script
+              mountPath: /app/postgres-backup-script.py
+              subPath: postgres-backup-script.py
+              readOnly: true
+            - name: python-packages
+              mountPath: /packages
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: backup-script
+          configMap:
+            name: postgres-r2-backup-config
+            defaultMode: 0755
+        - name: python-packages
+          emptyDir: {}

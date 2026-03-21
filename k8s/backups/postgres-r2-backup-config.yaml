@@ -1,0 +1,160 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-r2-backup-config
+  namespace: equal-risk
+data:
+  postgres-backup-script.py: |
+    #!/usr/bin/env python3
+    import hashlib
+    import json
+    import os
+    import subprocess
+    import sys
+    from datetime import datetime, timezone
+
+    import boto3
+    from botocore.exceptions import ClientError
+
+
+    def require_env(name):
+        value = os.getenv(name)
+        if value:
+            return value
+
+        print(
+            f"Error: required environment variable {name} is not set",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
+    def get_s3_client():
+        return boto3.client(
+            "s3",
+            endpoint_url=require_env("S3_PROVIDER_ENDPOINT"),
+            aws_access_key_id=require_env("S3_PROVIDER_ACCESS_KEY"),
+            aws_secret_access_key=require_env("S3_PROVIDER_SECRET_KEY"),
+            region_name=os.getenv("S3_PROVIDER_REGION", "auto"),
+        )
+
+
+    def sha256_file(path):
+        digest = hashlib.sha256()
+        with open(path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+
+    def upload_file(client, bucket, local_path, remote_key):
+        print(f"Uploading {local_path} to s3://{bucket}/{remote_key}")
+        try:
+            client.upload_file(local_path, bucket, remote_key)
+        except ClientError as exc:
+            print(f"Upload failed for {remote_key}: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+
+    def run_pg_dump(output_path):
+        env = os.environ.copy()
+        env["PGPASSWORD"] = require_env("POSTGRES_PASSWORD")
+        command = [
+            "pg_dump",
+            "-h",
+            require_env("POSTGRES_HOST"),
+            "-p",
+            os.getenv("POSTGRES_PORT", "5432"),
+            "-U",
+            require_env("POSTGRES_USER"),
+            "-d",
+            require_env("POSTGRES_DB"),
+            "-Fc",
+            "--no-owner",
+            "--no-acl",
+            "-f",
+            output_path,
+        ]
+
+        print(f"Running {' '.join(command[:-1])} <output>")
+        try:
+            subprocess.run(command, env=env, check=True)
+        except subprocess.CalledProcessError as exc:
+            print(f"pg_dump failed: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+
+    def write_text(path, content):
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(content)
+
+
+    def write_manifest(path, payload):
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+
+
+    def main():
+        bucket = require_env("BACKUP_BUCKET")
+        prefix_root = require_env("BACKUP_PREFIX_ROOT").strip("/")
+        app_name = require_env("BACKUP_APP_NAME")
+        namespace = require_env("POD_NAMESPACE")
+        timestamp = datetime.now(timezone.utc)
+        run_date = timestamp.strftime("%Y-%m-%d")
+        run_ts = timestamp.strftime("%Y-%m-%dT%H%M%SZ")
+        prefix = f"{prefix_root}/{run_date}/postgres/{app_name}"
+
+        dump_name = f"{app_name}-{run_ts}.pgdump"
+        dump_path = f"/tmp/{dump_name}"
+        checksum_name = f"{dump_name}.sha256"
+        checksum_path = f"/tmp/{checksum_name}"
+        manifest_name = f"{app_name}-{run_ts}.manifest.json"
+        manifest_path = f"/tmp/{manifest_name}"
+
+        run_pg_dump(dump_path)
+        checksum = sha256_file(dump_path)
+        write_text(checksum_path, f"{checksum}  {dump_name}\n")
+
+        dump_key = f"{prefix}/{dump_name}"
+        checksum_key = f"{prefix}/{checksum_name}"
+        manifest_key = f"{prefix}/{manifest_name}"
+
+        manifest = {
+            "app": app_name,
+            "namespace": namespace,
+            "timestamp_utc": run_ts,
+            "bucket": bucket,
+            "prefix": prefix,
+            "dump_format": "pg_dump custom",
+            "database": {
+                "host": require_env("POSTGRES_HOST"),
+                "port": os.getenv("POSTGRES_PORT", "5432"),
+                "user": require_env("POSTGRES_USER"),
+                "name": require_env("POSTGRES_DB"),
+            },
+            "artifacts": {
+                "dump": dump_key,
+                "checksum": checksum_key,
+                "manifest": manifest_key,
+            },
+            "sha256": checksum,
+        }
+        write_manifest(manifest_path, manifest)
+
+        client = get_s3_client()
+        upload_file(client, bucket, dump_path, dump_key)
+        upload_file(client, bucket, checksum_path, checksum_key)
+        upload_file(client, bucket, manifest_path, manifest_key)
+
+        print("Backup completed successfully")
+        print(f"Dump: s3://{bucket}/{dump_key}")
+
+
+    if __name__ == "__main__":
+        main()
+  S3_PROVIDER_REGION: "auto"
+  BACKUP_BUCKET: "homelab"
+  BACKUP_PREFIX_ROOT: "backups/cluster/homelab-k3s/rebuild-exports"
+  BACKUP_APP_NAME: "equal-risk"
