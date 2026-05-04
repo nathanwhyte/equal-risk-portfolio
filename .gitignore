@@ -46,3 +46,7 @@
 *~
 .vscode/
 .cursor/
+
+# Kubernetes secret files (tokens, credentials)
+**/*secret*.yaml
+**/*secret*.yml

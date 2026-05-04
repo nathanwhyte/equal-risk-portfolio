@@ -1,0 +1,80 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: equal-risk-rails
+  namespace: equal-risk
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: equal-risk-rails
+  template:
+    metadata:
+      labels:
+        app: equal-risk-rails
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:17-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h $PGHOST -p $PGPORT; do sleep 2; done
+          env:
+            - name: PGHOST
+              value: postgres.equal-risk.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+      containers:
+        - name: rails
+          image: registry.nathanwhyte.dev/equal-risk/rails:test
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: API_URL
+              value: "http://math:3001"
+            - name: RAILS_LOG_TO_STDOUT
+              value: "true"
+            - name: RAILS_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: RAILS_MASTER_KEY
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_USERNAME
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE_PASSWORD
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_HOST
+              value: postgres.equal-risk.svc.cluster.local
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE_PORT
+              value: "5432"
+            - name: EQUAL_RISK_PORTFOLIO_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: equal-risk-secrets
+                  key: EQUAL_RISK_PORTFOLIO_DATABASE
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rails
+  namespace: equal-risk
+spec:
+  selector:
+    app: equal-risk-rails
+  ports:
+    - port: 3000
+      targetPort: 3000
