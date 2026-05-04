@@ -32,8 +32,8 @@ if [ -z "$TAG" ]; then
   exit 1
 fi
 
-RAILS_IMAGE="nathanwhyte/equal-risk-rails:${TAG}"
-API_IMAGE="nathanwhyte/equal-risk-math:${TAG}"
+RAILS_IMAGE="registry.nathanwhyte.dev/equal-risk/rails:${TAG}"
+API_IMAGE="registry.nathanwhyte.dev/equal-risk/math:${TAG}"
 
 # Build flags
 BUILD_FLAGS="--platform linux/amd64"
@@ -72,6 +72,3 @@ echo ""
 echo "Images:"
 echo "  ${RAILS_IMAGE}"
 echo "  ${API_IMAGE}"
-
-
-
