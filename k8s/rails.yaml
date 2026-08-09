@@ -5,7 +5,11 @@ metadata:
   name: equal-risk-rails
   namespace: equal-risk
 spec:
-  replicas: 1
+  # 2 replicas so the PodDisruptionBudget below can actually do its job: a PDB
+  # constrains simultaneous disruption across replicas and cannot protect a
+  # single-replica Deployment at all (minAvailable: 1 against 1 replica is
+  # unsatisfiable during eviction and deadlocks the drain instead). See BUG-1076.
+  replicas: 2
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -78,3 +82,22 @@ spec:
   ports:
     - port: 3000
       targetPort: 3000
+---
+# Keeps one Rails pod serving while the other is evicted during a node drain
+# (see the homelab node-maintenance playbook, GUIDE-1070).
+#
+# The selector must match the POD label `app: equal-risk-rails`, NOT the Service
+# name `rails` above. The previous live PDB selected `app: rails` and therefore
+# matched zero pods: it reported `disruptionsAllowed: 0`, which reads like strict
+# protection, while providing none. Check `expectedPods`, not
+# `disruptionsAllowed`, when verifying a PDB actually covers something. BUG-1076.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: equal-risk-pdb
+  namespace: equal-risk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: equal-risk-rails
