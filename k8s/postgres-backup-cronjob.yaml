@@ -1,6 +1,15 @@
 ---
-# CronJob for daily Postgres backups to Garage
+# CronJob for daily Postgres backups to Cloudflare R2
 # Runs daily at midnight UTC (0 0 * * *)
+#
+# Targets R2 (bucket `homelab`), NOT the in-cluster Garage. Garage is not
+# wipe-safe, so it is the wrong target for a disaster-recovery backup — the
+# whole point is to survive the cluster. The original Garage wiring broke when
+# its access key was deleted, and the failure was silent for months (BUG-1014).
+#
+# Config comes from k8s/backups/postgres-r2-backup-config.yaml
+# (`postgres-r2-backup-config`) and credentials from the `r2-backup-credentials`
+# secret, which is provisioned out-of-band and is NOT in this repo.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -67,38 +76,49 @@ spec:
                     secretKeyRef:
                       name: equal-risk-secrets
                       key: EQUAL_RISK_PORTFOLIO_DATABASE
-                # Garage S3 settings
+                # Cloudflare R2 settings.
+                # Endpoint lives in the secret, not the configmap: it embeds the
+                # Cloudflare account id.
                 - name: S3_PROVIDER_ENDPOINT
                   valueFrom:
-                    configMapKeyRef:
-                      name: postgres-backup-config
+                    secretKeyRef:
+                      name: r2-backup-credentials
                       key: S3_PROVIDER_ENDPOINT
-                - name: S3_PROVIDER_REGION
-                  valueFrom:
-                    configMapKeyRef:
-                      name: postgres-backup-config
-                      key: S3_PROVIDER_REGION
                 - name: S3_PROVIDER_ACCESS_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: s3-provider-credentials
+                      name: r2-backup-credentials
                       key: S3_PROVIDER_ACCESS_KEY
                 - name: S3_PROVIDER_SECRET_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: s3-provider-credentials
+                      name: r2-backup-credentials
                       key: S3_PROVIDER_SECRET_KEY
+                - name: S3_PROVIDER_REGION
+                  valueFrom:
+                    configMapKeyRef:
+                      name: postgres-r2-backup-config
+                      key: S3_PROVIDER_REGION
                 # Backup configuration
                 - name: BACKUP_BUCKET
                   valueFrom:
                     configMapKeyRef:
-                      name: postgres-backup-config
+                      name: postgres-r2-backup-config
                       key: BACKUP_BUCKET
-                - name: BACKUP_RETENTION_DAYS
+                - name: BACKUP_APP_NAME
                   valueFrom:
                     configMapKeyRef:
-                      name: postgres-backup-config
-                      key: BACKUP_RETENTION_DAYS
+                      name: postgres-r2-backup-config
+                      key: BACKUP_APP_NAME
+                - name: BACKUP_PREFIX_ROOT
+                  valueFrom:
+                    configMapKeyRef:
+                      name: postgres-r2-backup-config
+                      key: BACKUP_PREFIX_ROOT
+                - name: POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
               volumeMounts:
                 - name: backup-script
                   mountPath: /app/postgres-backup-script.py
@@ -117,8 +137,7 @@ spec:
           volumes:
             - name: backup-script
               configMap:
-                name: postgres-backup-config
+                name: postgres-r2-backup-config
                 defaultMode: 0755
             - name: python-packages
               emptyDir: {}
-
