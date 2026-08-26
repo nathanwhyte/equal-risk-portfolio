@@ -1,0 +1,23 @@
+name: Build Hook
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  curl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check `build-hook` health
+        shell: bash
+        run: |
+          curl --fail-with-body -sS https://hook.nathanwhyte.dev/health
+      - name: Call `build-hook` with bearer token
+        shell: bash
+        env:
+          BEARER_TOKEN: ${{ secrets.BEARER_TOKEN }}
+        run: |
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${BEARER_TOKEN}" \
+            https://hook.nathanwhyte.dev/equal-risk
