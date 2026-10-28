@@ -1,6 +1,10 @@
 ---
 # CronJob for daily Postgres backups to Cloudflare R2
-# Runs daily at midnight UTC (0 0 * * *)
+# Runs daily at 00:00 in the k3s server's local time (0 0 * * *). There is no
+# spec.timeZone, so the CronJob controller on timmy uses its host clock
+# (UTC-5 during CDT): runs land at 05:00 UTC now and 06:00 UTC under CST.
+# Set spec.timeZone (homelab's k3s-datastore-backup uses America/Chicago) if
+# the run time needs to be explicit.
 #
 # Targets R2 (bucket `homelab`), NOT the in-cluster Garage. Garage is not
 # wipe-safe, so it is the wrong target for a disaster-recovery backup — the
@@ -16,7 +20,7 @@ metadata:
   name: postgres-backup
   namespace: equal-risk
 spec:
-  schedule: "0 0 * * *"  # Daily at midnight UTC
+  schedule: "0 0 * * *"  # Daily at midnight, k3s server local time (see header)
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   concurrencyPolicy: Forbid  # Don't run multiple backups concurrently

@@ -133,7 +133,7 @@ The Postgres StatefulSet is automatically backed up daily to Garage S3-compatibl
 
 #### Backup Details
 
-- **Schedule**: Daily at midnight UTC (`0 0 * * *`)
+- **Schedule**: Daily at midnight in the k3s server's local time (`0 0 * * *`, no `timeZone`): 05:00 UTC during CDT, 06:00 UTC during CST
 - **Format**: Compressed SQL dump (`.sql.gz`) created with `pg_dump`
 - **Retention**: 7 days (automatically cleaned up)
 - **Storage**: Garage S3 bucket `equal-risk-postgres-backups`
