@@ -41,6 +41,20 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
+          # Readiness only. On 2026-10-26 the volume's NFS server (Longhorn
+          # share-manager) hung at startup and Postgres stopped accepting
+          # connections for 2.5 days while the pod reported 1/1 Ready — there
+          # was no probe, so the only alerts were downstream (stale backup,
+          # rails init stuck). With this, the pod goes NotReady and the cluster's
+          # KubePodNotReady / KubeStatefulSetReplicasMismatch name Postgres itself.
+          # No livenessProbe: a process stuck in NFS I/O cannot be killed by a
+          # container restart, so liveness would only add a restart loop.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-h", "127.0.0.1", "-p", "5432"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             requests:
               memory: "256Mi"
