@@ -1,0 +1,66 @@
+# FROZEN — 2026-10-28 RWX -> RWO migration artifacts for equal-risk Postgres.
+#
+# Why: the data volume was ReadWriteMany, i.e. served over NFS by a Longhorn
+# share-manager pod. On 2026-10-26 that share-manager hung at startup and
+# Postgres stopped accepting connections for 2.5 days. A single-replica
+# StatefulSet gains nothing from RWX; RWO block storage removes the NFS server
+# from the data path entirely. Same pattern as homelab harbor/rwo-migration.md.
+#
+# Kubernetes cannot change a bound PVC's access mode, and a StatefulSet's
+# volumeClaimTemplates are immutable, so:
+#   1. apply the PVC below (named for the new template `pgdata`, ordinal 0,
+#      so the StatefulSet adopts it instead of creating an empty one);
+#   2. scale rails/math and the postgres StatefulSet to 0;
+#   3. run the migrator pod (copies the whole volume root, numeric ownership);
+#   4. delete the StatefulSet (PVC retention is Retain) and apply postgres.yaml;
+#   5. compare a per-table row-count + checksum fingerprint taken before and after.
+# The old RWX claim `postgres-data-postgres-0` is left in place for rollback.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgdata-postgres-0
+  namespace: equal-risk
+  labels:
+    app: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: longhorn-db
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: postgres-rwo-migrator
+  namespace: equal-risk
+spec:
+  restartPolicy: Never
+  containers:
+    - name: rsync
+      image: alpine:3.20
+      command: ["/bin/sh", "-c"]
+      # Second pass is a checksum dry-run: it must list nothing to transfer.
+      args:
+        - >-
+          apk add --no-cache rsync >/dev/null &&
+          rsync -aHAX --numeric-ids --delete /source/ /dest/ &&
+          echo "--- verify (checksum dry-run, expect no file lines):" &&
+          rsync -aHAXc --numeric-ids --delete --dry-run --itemize-changes /source/ /dest/ &&
+          echo "--- done" && du -sh /source /dest
+      volumeMounts:
+        - name: source
+          mountPath: /source
+          readOnly: true
+        - name: dest
+          mountPath: /dest
+  volumes:
+    - name: source
+      persistentVolumeClaim:
+        claimName: postgres-data-postgres-0
+        readOnly: true
+    - name: dest
+      persistentVolumeClaim:
+        claimName: pgdata-postgres-0
