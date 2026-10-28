@@ -22,6 +22,13 @@ spec:
   concurrencyPolicy: Forbid  # Don't run multiple backups concurrently
   jobTemplate:
     spec:
+      # Forbid + no deadline let one hung run block every later backup: on
+      # 2026-10-26 pg_dump waited 2.5 days on a database whose NFS-backed volume
+      # had gone away, and no backup ran until a human noticed. A healthy run
+      # takes ~30s; after 1h the Job fails (DeadlineExceeded), which pages
+      # BackupCronJobFailed and frees the next night's run.
+      activeDeadlineSeconds: 3600
+      backoffLimit: 2
       template:
         spec:
           restartPolicy: OnFailure
@@ -56,6 +63,10 @@ spec:
                   export PYTHONPATH=/packages && \
                   python3 /app/postgres-backup-script.py
               env:
+                # Unbuffered, so the pod log shows where a run is stuck. With
+                # buffering the log ended at apt-get output while pg_dump hung.
+                - name: PYTHONUNBUFFERED
+                  value: "1"
                 # Postgres connection settings
                 - name: POSTGRES_HOST
                   value: "postgres.equal-risk.svc.cluster.local"
